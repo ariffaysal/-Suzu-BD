@@ -74,7 +74,7 @@ export default function CartPage() {
                     </button>
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between pt-3">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3">
                     <div className="flex items-center rounded-lg border border-gray-300">
                       <button
                         onClick={() =>

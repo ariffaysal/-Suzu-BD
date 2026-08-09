@@ -29,7 +29,7 @@ const links = [
 
 export default function FloatingButtons() {
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
+    <div className="fixed bottom-4 right-4 z-40 flex flex-col gap-3 sm:bottom-6 sm:right-6">
       {links.map((link) => (
         <a
           key={link.href}
@@ -37,7 +37,7 @@ export default function FloatingButtons() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={link.label}
-          className={`flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-110 ${link.bg}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-110 sm:h-12 sm:w-12 ${link.bg}`}
         >
           {link.icon}
         </a>

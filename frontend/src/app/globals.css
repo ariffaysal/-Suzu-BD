@@ -75,6 +75,37 @@ body {
   animation: logo-shine 3.8s ease-in-out 1.4s infinite;
 }
 
+/* ---------- Hero slider ---------- */
+
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hero-kenburns {
+  0% {
+    transform: scale(1.02) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.12) translate(-1.5%, -1.5%);
+  }
+}
+
+/* Fades the whole slide layer in over the dark base on first paint */
+.hero-slides-layer {
+  animation: hero-fade-in 1.2s ease-out both;
+}
+
+/* Slow cinematic zoom applied to the slide that is currently active */
+.hero-slide-active {
+  animation: hero-kenburns 9s ease-out forwards;
+  will-change: transform, opacity;
+}
+
 /* ---------- Collection cards ---------- */
 
 @keyframes ken-burns {
@@ -120,6 +151,10 @@ body {
   }
   .logo-shine {
     opacity: 0;
+  }
+  .hero-slides-layer,
+  .hero-slide-active {
+    animation: none;
   }
   .collection-kenburns {
     animation: none;

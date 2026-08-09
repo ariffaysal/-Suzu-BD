@@ -69,3 +69,14 @@ export interface CreateOrderInput {
   paymentMethod?: string;
   items: { productId: number; size: string; quantity: number }[];
 }
+
+export interface HeroSlide {
+  id: number;
+  imageUrl: string;
+  title?: string | null;
+  subtitle?: string | null;
+  position: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

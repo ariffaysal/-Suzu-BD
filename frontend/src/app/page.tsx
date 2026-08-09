@@ -3,6 +3,7 @@ import ProductCard from '@/components/product/ProductCard';
 import Logo from '@/components/brand/Logo';
 import CollectionCard from '@/components/category/CollectionCard';
 import CategoryPhotoCard from '@/components/category/CategoryPhotoCard';
+import HeroSlider from '@/components/layout/HeroSlider';
 import { getCategories, getProducts } from '@/services/products';
 import { categoryIcon, groupByCollection } from '@/services/categories';
 
@@ -26,19 +27,9 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-16">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gray-900 px-6 py-16 text-white sm:px-12 sm:py-24">
-        {/* Ambient glow behind the logo */}
-        <div
-          aria-hidden
-          className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#a87f3f]/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-[#c9a45c]/10 blur-3xl"
-        />
-
-        <div className="relative z-10 max-w-2xl">
+      {/* Hero — auto-sliding image carousel (slides managed in the database) */}
+      <HeroSlider>
+        <div className="max-w-2xl">
           <Logo
             variant="full"
             monogramClassName="h-20 w-20 sm:h-24 sm:w-24 drop-shadow-[0_8px_24px_rgba(0,0,0,0.4)]"
@@ -70,7 +61,7 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-      </section>
+      </HeroSlider>
 
       {/* Category grid */}
       {categories.length > 0 && (

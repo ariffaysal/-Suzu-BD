@@ -246,6 +246,67 @@ const products: SeedProduct[] = [
   },
 ];
 
+// Homepage hero banner slides. Images live in backend/uploads/hero-slides/
+// (served at /uploads/hero-slides/*). Upload new ones via the admin API:
+//   POST /api/hero-slides  (multipart: file, title, subtitle, position, isActive)
+interface SeedHeroSlide {
+  imageUrl: string;
+  title?: string;
+  subtitle?: string;
+  position: number;
+}
+
+const heroSlides: SeedHeroSlide[] = [
+  {
+    imageUrl: '/uploads/hero-slides/hero-sneakers-redtape.png',
+    title: 'New Season Collection',
+    subtitle: 'Premium sneakers, running shoes and formal footwear — delivered to your door.',
+    position: 1,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-sneakers-brown.png',
+    title: 'Step Into Style',
+    subtitle: 'Casual comfort engineered for everyday wear.',
+    position: 2,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-loafers-black.png',
+    title: 'Formal Footwear',
+    subtitle: 'Refined leather loafers for office and evening.',
+    position: 3,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-pumps-black.png',
+    title: 'Elegant Heels',
+    subtitle: 'Sleek pointed pumps with a kitten heel.',
+    position: 4,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-jelly-flats.png',
+    title: 'Everyday Comfort',
+    subtitle: 'Soft, flexible flats for all-day wear.',
+    position: 5,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-loafers-cream.png',
+    title: 'Classic Loafers',
+    subtitle: 'Timeless quilted patent loafers.',
+    position: 6,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-watch-rosegold.png',
+    title: 'Timeless Accessories',
+    subtitle: 'Elegant watches to complete the look.',
+    position: 7,
+  },
+  {
+    imageUrl: '/uploads/hero-slides/hero-watch-black.png',
+    title: 'Statement Timepieces',
+    subtitle: 'Bold, modern designs for every wrist.',
+    position: 8,
+  },
+];
+
 async function main() {
   // Seed admin user (JWT login: admin@footwear.com / admin123)
   const adminEmail = 'admin@footwear.com';
@@ -256,6 +317,17 @@ async function main() {
     create: { email: adminEmail, password, name: 'Store Admin' },
   });
   console.log('✓ Admin user ready:', adminEmail);
+
+  // Seed hero banner slides (only when the table is empty, so reruns don't duplicate)
+  const heroCount = await prisma.heroSlide.count();
+  if (heroCount === 0) {
+    for (const slide of heroSlides) {
+      await prisma.heroSlide.create({ data: slide });
+    }
+    console.log('✓ Hero slides seeded:', heroSlides.length);
+  } else {
+    console.log(`• Hero slides already present (${heroCount}), skipping`);
+  }
 
   // Seed categories with their collection
   for (const category of categories) {

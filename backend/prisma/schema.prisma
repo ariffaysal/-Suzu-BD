@@ -84,3 +84,19 @@ model Admin {
   name      String?
   createdAt DateTime @default(now())
 }
+
+// Hero banner slides shown on the storefront homepage. Images live in
+// backend/uploads/hero-slides/ and are served at /uploads/hero-slides/*.
+model HeroSlide {
+  id        Int      @id @default(autoincrement())
+  imageUrl  String
+  title     String? // e.g. "New Season Collection" (optional kicker)
+  subtitle  String? // optional caption rendered under the title
+  position  Int      @default(0) // sort order on the homepage (ascending)
+  isActive  Boolean  @default(true) // hide a slide without deleting it
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+  @@index([isActive])
+}

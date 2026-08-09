@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: footwear_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: footwear
+      POSTGRES_PASSWORD: footwear
+      POSTGRES_DB: footwear
+    # Host 5433 → container 5432, so the app DB coexists with any local PostgreSQL on 5432
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U footwear -d footwear"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

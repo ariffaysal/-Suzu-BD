@@ -1,0 +1,86 @@
+// Prisma schema for Footwear Ecommerce
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Collection {
+  MEN
+  WOMEN
+  ACCESSORIES
+}
+
+model Category {
+  id         Int         @id @default(autoincrement())
+  name       String
+  slug       String      @unique
+  collection Collection?
+  products   Product[]
+}
+
+model Product {
+  id            Int             @id @default(autoincrement())
+  title         String
+  slug          String          @unique
+  description   String?
+  regularPrice  Float
+  discountPrice Float?
+  categoryId    Int
+  category      Category        @relation(fields: [categoryId], references: [id])
+  variants      ProductVariant[]
+  images        ProductImage[]
+  createdAt     DateTime        @default(now())
+}
+
+model ProductVariant {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String // e.g., "40", "41", "42"
+  color     String? // e.g., "White Blue"
+  stock     Int     @default(0)
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  customerName  String
+  phone         String
+  address       String
+  totalAmount   Float
+  paymentMethod String      @default("COD") // Cash On Delivery
+  status        String      @default("PENDING") // PENDING, PROCESSING, COMPLETED, CANCELLED
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  size      String
+  quantity  Int
+  price     Float
+}
+
+// Added for JWT admin authentication (not part of the original schema)
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String // bcrypt hash
+  name      String?
+  createdAt DateTime @default(now())
+}

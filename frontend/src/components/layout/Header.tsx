@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import Logo from '@/components/brand/Logo';
 import { getCategories } from '@/services/products';
-import { groupByCollection } from '@/services/categories';
+import { categoryIcon, groupByCollection } from '@/services/categories';
 import type { Category } from '@/types';
 
 export default function Header() {
@@ -78,28 +78,72 @@ export default function Header() {
             </button>
 
             {menuOpen && (
-              <div className="absolute left-1/2 top-full z-50 mt-3 w-[560px] -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-5 shadow-xl">
-                <div className="grid grid-cols-3 gap-6">
+              <div className="menu-drop absolute left-1/2 top-full z-50 mt-3 w-[720px] -translate-x-1/2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                {/* Collection panels */}
+                <div className="grid grid-cols-3 divide-x divide-gray-100">
                   {groups.map((group) => (
-                    <div key={group.key}>
-                      <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">
-                        {group.label}
-                      </p>
-                      <ul className="space-y-1.5">
+                    <div key={group.key} className="px-4 py-5">
+                      <div className="mb-3 flex items-center justify-between gap-2 px-2">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                          {group.label}
+                        </p>
+                        <Link
+                          href={`/products?collection=${group.key.toLowerCase()}`}
+                          onClick={() => setMenuOpen(false)}
+                          className="text-[11px] font-semibold text-indigo-600 transition-colors hover:text-indigo-800"
+                        >
+                          View all →
+                        </Link>
+                      </div>
+                      <ul className="space-y-0.5">
                         {group.categories.map((category) => (
                           <li key={category.id}>
                             <Link
-                              href={`/products?category=${category.slug}`}
+                              href={`/products?collection=${group.key.toLowerCase()}&category=${category.slug}`}
                               onClick={() => setMenuOpen(false)}
-                              className="block rounded-md px-2 py-1 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
+                              className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                             >
-                              {category.name}
+                              <span aria-hidden className="w-5 text-center text-base leading-none">
+                                {categoryIcon(category.slug)}
+                              </span>
+                              <span className="truncate">{category.name}</span>
+                              {typeof category._count?.products === 'number' &&
+                                category._count.products > 0 && (
+                                  <span className="ml-auto shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
+                                    {category._count.products}
+                                  </span>
+                                )}
                             </Link>
                           </li>
                         ))}
                       </ul>
                     </div>
                   ))}
+                </div>
+
+                {/* Footer strip */}
+                <div className="flex items-center justify-between gap-4 border-t border-gray-100 bg-gray-50 px-5 py-3">
+                  <Link
+                    href="/products?category=new-arrivals"
+                    onClick={() => setMenuOpen(false)}
+                    className="text-sm font-medium text-gray-700 transition-colors hover:text-indigo-600"
+                  >
+                    ✦ New Arrivals
+                  </Link>
+                  <Link
+                    href="/products"
+                    onClick={() => setMenuOpen(false)}
+                    className="text-sm font-medium text-gray-700 transition-colors hover:text-indigo-600"
+                  >
+                    All Products
+                  </Link>
+                  <Link
+                    href="/products"
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-lg bg-[#c9a45c] px-3.5 py-1.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-[#d9b871]"
+                  >
+                    Shop Now
+                  </Link>
                 </div>
               </div>
             )}

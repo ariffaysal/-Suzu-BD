@@ -11,25 +11,37 @@ export const metadata: Metadata = {
 };
 
 interface ProductsPageProps {
-  searchParams: Promise<{ category?: string; search?: string }>;
+  searchParams: Promise<{ category?: string; search?: string; collection?: string }>;
 }
 
 const NEW_ARRIVALS_LIMIT = 12;
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const { category, search } = await searchParams;
+  const { category, search, collection } = await searchParams;
   const isNewArrivals = category === 'new-arrivals';
 
   const [categories, products] = await Promise.all([
     getCategories().catch(() => []),
-    getProducts({ category: isNewArrivals ? undefined : category, search }).catch(() => []),
+    getProducts({
+      category: isNewArrivals ? undefined : category,
+      collection: isNewArrivals ? undefined : collection,
+      search,
+    }).catch(() => []),
   ]);
 
   const activeCategory = categories.find((c) => c.slug === category);
   const visibleProducts = isNewArrivals ? products.slice(0, NEW_ARRIVALS_LIMIT) : products;
   const groups = groupByCollection(categories);
+  const activeCollection = groups.find((g) => g.key === collection?.toUpperCase());
+  const visibleGroups = collection ? (activeCollection ? [activeCollection] : []) : groups;
 
-  const heading = isNewArrivals ? 'New Arrivals' : activeCategory ? activeCategory.name : 'All Products';
+  const heading = isNewArrivals
+    ? 'New Arrivals'
+    : activeCategory
+      ? activeCategory.name
+      : activeCollection
+        ? activeCollection.label
+        : 'All Products';
 
   return (
     <div>
@@ -49,7 +61,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <Link
             href="/products"
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              !category
+              !category && !collection
                 ? 'bg-gray-900 text-white'
                 : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
             }`}
@@ -67,7 +79,22 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             ✦ New Arrivals
           </Link>
 
+          {/* Collection filters */}
           {groups.map((group) => (
+            <Link
+              key={group.key}
+              href={`/products?collection=${group.key.toLowerCase()}`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                activeCollection?.key === group.key && !isNewArrivals
+                  ? 'bg-gray-900 text-white'
+                  : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {group.label.replace(' Collection', '')}
+            </Link>
+          ))}
+
+          {visibleGroups.map((group) => (
             <div key={group.key} className="flex flex-wrap items-center gap-2">
               <span className="mx-1 hidden text-[11px] font-bold uppercase tracking-wider text-gray-400 sm:inline">
                 {group.label.replace(' Collection', '')}
@@ -75,7 +102,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               {group.categories.map((c) => (
                 <Link
                   key={c.id}
-                  href={`/products?category=${c.slug}`}
+                  href={`/products?collection=${group.key.toLowerCase()}&category=${c.slug}`}
                   className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                     category === c.slug
                       ? 'bg-gray-900 text-white'
@@ -92,6 +119,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         {/* Native GET form — updates searchParams on submit, no client JS needed */}
         <form action="/products" method="GET" className="mt-4 flex gap-2 border-t border-gray-100 pt-4">
           <input type="hidden" name="category" value={category ?? ''} readOnly />
+          <input type="hidden" name="collection" value={collection ?? ''} readOnly />
           <input
             type="text"
             name="search"

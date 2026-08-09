@@ -1,9 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Collection, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -50,11 +51,30 @@ export class ProductsService {
 
   // ---------- Products ----------
 
-  async findAll(query: { category?: string; search?: string }) {
+  async findAll(query: {
+    category?: string;
+    search?: string;
+    collection?: string;
+  }) {
     const where: Prisma.ProductWhereInput = {};
-    if (query.category) {
-      where.category = { slug: query.category };
+
+    const categoryFilter: Prisma.CategoryWhereInput = {};
+    if (query.collection) {
+      const collection = query.collection.toUpperCase();
+      if (!['MEN', 'WOMEN', 'ACCESSORIES'].includes(collection)) {
+        throw new BadRequestException(
+          `Unknown collection: ${query.collection}. Use men, women or accessories.`,
+        );
+      }
+      categoryFilter.collection = collection as Collection;
     }
+    if (query.category) {
+      categoryFilter.slug = query.category;
+    }
+    if (Object.keys(categoryFilter).length > 0) {
+      where.category = categoryFilter;
+    }
+
     if (query.search) {
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },

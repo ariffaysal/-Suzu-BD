@@ -4,12 +4,14 @@ import { apiGet } from './api';
 export interface ProductQuery {
   category?: string;
   search?: string;
+  collection?: string;
 }
 
 export function getProducts(query: ProductQuery = {}) {
   const params = new URLSearchParams();
   if (query.category) params.set('category', query.category);
   if (query.search) params.set('search', query.search);
+  if (query.collection) params.set('collection', query.collection);
   const qs = params.toString();
   return apiGet<Product[]>(`/products${qs ? `?${qs}` : ''}`);
 }

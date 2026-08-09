@@ -36,8 +36,12 @@ export class ProductsController {
 
   @Public()
   @Get('products')
-  findAll(@Query('category') category?: string, @Query('search') search?: string) {
-    return this.productsService.findAll({ category, search });
+  findAll(
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+    @Query('collection') collection?: string,
+  ) {
+    return this.productsService.findAll({ category, search, collection });
   }
 
   @Public()

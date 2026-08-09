@@ -75,6 +75,30 @@ body {
   animation: logo-shine 3.8s ease-in-out 1.4s infinite;
 }
 
+/* ---------- Header mega-menu ---------- */
+
+@keyframes menu-drop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.menu-drop {
+  animation: menu-drop 0.18s ease-out both;
+  transform-origin: top;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-drop {
+    animation: none;
+  }
+}
+
 /* ---------- Hero slider ---------- */
 
 @keyframes hero-fade-in {

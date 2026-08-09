@@ -29,7 +29,7 @@ export default async function HomePage() {
     <div className="space-y-16">
       {/* Hero — auto-sliding image carousel (slides managed in the database) */}
       <HeroSlider>
-        <div className="max-w-2xl">
+        <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <Logo
             variant="full"
             monogramClassName="h-20 w-20 sm:h-24 sm:w-24 drop-shadow-[0_8px_24px_rgba(0,0,0,0.4)]"

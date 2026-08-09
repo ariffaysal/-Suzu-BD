@@ -75,6 +75,40 @@ body {
   animation: logo-shine 3.8s ease-in-out 1.4s infinite;
 }
 
+/* ---------- Collection cards ---------- */
+
+@keyframes ken-burns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.12) translate(-1.5%, -1.5%);
+  }
+}
+
+@keyframes card-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.collection-kenburns {
+  animation: ken-burns 20s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.collection-card {
+  animation: card-fade-up 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.collection-card:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-letter {
     opacity: 1;
@@ -86,5 +120,11 @@ body {
   }
   .logo-shine {
     opacity: 0;
+  }
+  .collection-kenburns {
+    animation: none;
+  }
+  .collection-card {
+    animation: none;
   }
 }

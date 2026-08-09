@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import ProductCard from '@/components/product/ProductCard';
 import Logo from '@/components/brand/Logo';
+import CollectionCard from '@/components/category/CollectionCard';
+import CategoryPhotoCard from '@/components/category/CategoryPhotoCard';
 import { getCategories, getProducts } from '@/services/products';
 import { categoryIcon, groupByCollection } from '@/services/categories';
 
@@ -13,6 +15,14 @@ export default async function HomePage() {
   ]);
   const featured = products.slice(0, 8);
   const groups = groupByCollection(categories);
+  const menGroup = groups.find((g) => g.key === 'MEN');
+  const womenGroup = groups.find((g) => g.key === 'WOMEN');
+  const accessoriesGroup = groups.find((g) => g.key === 'ACCESSORIES');
+
+  const ACCESSORY_IMAGES: Record<string, string> = {
+    bags: '/images/bags.png',
+    'watches-jewellery': '/images/watches-jewellery.png',
+  };
 
   return (
     <div className="space-y-16">
@@ -100,33 +110,61 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          {/* Collections */}
-          {groups.map((group) => (
-            <div key={group.key} className="mb-10">
+          {/* Men + Women collection cards */}
+          {(menGroup || womenGroup) && (
+            <div className="mb-10 grid gap-6 md:grid-cols-2">
+              {menGroup && (
+                <CollectionCard
+                  image="/images/men-collection.png"
+                  title="Men Collection"
+                  tagline="Sneakers, formal shoes, boots and more — built to last."
+                  categories={menGroup.categories}
+                />
+              )}
+              {womenGroup && (
+                <CollectionCard
+                  image="/images/women-collection.png"
+                  title="Women Collection"
+                  tagline="Trendy, comfortable styles for every occasion."
+                  categories={womenGroup.categories}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Accessories */}
+          {accessoriesGroup && (
+            <div className="mb-4">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-500">
-                {group.label}
+                {accessoriesGroup.label}
               </h3>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-                {group.categories.map((category) => (
-                  <Link
-                    key={category.id}
-                    href={`/products?category=${category.slug}`}
-                    className="group rounded-2xl border border-gray-200 bg-white p-4 text-center transition-shadow hover:shadow-md"
-                  >
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-xl">
-                      {categoryIcon(category.slug)}
-                    </div>
-                    <p className="mt-3 font-semibold text-gray-900 group-hover:text-indigo-600">
-                      {category.name}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {category._count?.products ?? 0} products
-                    </p>
-                  </Link>
-                ))}
+              <div className="grid gap-5 sm:grid-cols-2">
+                {accessoriesGroup.categories.map((category) => {
+                  const image = ACCESSORY_IMAGES[category.slug];
+                  if (image) {
+                    return <CategoryPhotoCard key={category.id} category={category} image={image} />;
+                  }
+                  return (
+                    <Link
+                      key={category.id}
+                      href={`/products?category=${category.slug}`}
+                      className="group rounded-2xl border border-gray-200 bg-white p-4 text-center transition-shadow hover:shadow-md"
+                    >
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-xl">
+                        {categoryIcon(category.slug)}
+                      </div>
+                      <p className="mt-3 font-semibold text-gray-900 group-hover:text-indigo-600">
+                        {category.name}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {category._count?.products ?? 0} products
+                      </p>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
-          ))}
+          )}
         </section>
       )}
 

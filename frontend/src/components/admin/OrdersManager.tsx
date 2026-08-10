@@ -1,8 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Order } from '@/types';
+import type { Order, Product } from '@/types';
 import { formatPrice } from '@/services/format';
+import { assetUrl } from '@/services/api';
 import {
   adminGetProducts,
   deleteOrder,
@@ -48,7 +50,10 @@ export default function OrdersManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [productTitles, setProductTitles] = useState<Map<number, string>>(new Map());
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [productInfo, setProductInfo] = useState<
+    Map<number, { title: string; image: string | null }>
+  >(new Map());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,9 +69,13 @@ export default function OrdersManager() {
 
   useEffect(() => {
     void load();
-    // Map product ids → titles so order items show real product names.
+    // Map product ids → title + first image so order items show real names and pictures.
     adminGetProducts()
-      .then((products) => setProductTitles(new Map(products.map((p) => [p.id, p.title]))))
+      .then((products: Product[]) =>
+        setProductInfo(
+          new Map(products.map((p) => [p.id, { title: p.title, image: p.images[0]?.url ?? null }])),
+        ),
+      )
       .catch(() => {});
   }, [load]);
 
@@ -152,6 +161,15 @@ export default function OrdersManager() {
         ))}
       </div>
 
+      {/* Large order detail popup */}
+      {detailOrder && (
+        <OrderDetailModal
+          order={detailOrder}
+          productInfo={productInfo}
+          onClose={() => setDetailOrder(null)}
+        />
+      )}
+
       {/* Orders table */}
       {orders.length === 0 ? (
         <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
@@ -181,8 +199,9 @@ export default function OrdersManager() {
                     order={order}
                     itemCount={itemCount}
                     expanded={expanded}
-                    productTitles={productTitles}
+                    productInfo={productInfo}
                     onToggle={() => setExpandedId(expanded ? null : order.id)}
+                    onView={() => setDetailOrder(order)}
                     onStatusChange={handleStatusChange}
                     onDelete={handleDelete}
                   />
@@ -200,8 +219,9 @@ interface OrderRowProps {
   order: Order;
   itemCount: number;
   expanded: boolean;
-  productTitles: Map<number, string>;
+  productInfo: Map<number, { title: string; image: string | null }>;
   onToggle: () => void;
+  onView: () => void;
   onStatusChange: (order: Order, status: string) => void;
   onDelete: (order: Order) => void;
 }
@@ -210,8 +230,9 @@ function OrderRow({
   order,
   itemCount,
   expanded,
-  productTitles,
+  productInfo,
   onToggle,
+  onView,
   onStatusChange,
   onDelete,
 }: OrderRowProps) {
@@ -258,6 +279,26 @@ function OrderRow({
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onView}
+              title="View full order details"
+              aria-label={`View full details for order ${order.id}`}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-indigo-200 bg-indigo-50 text-indigo-700 transition-colors hover:bg-indigo-100"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+              >
+                <path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
             <select
               value={order.status}
               onChange={(e) => onStatusChange(order, e.target.value)}
@@ -308,7 +349,7 @@ function OrderRow({
                     >
                       <span className="min-w-0">
                         <span className="font-medium text-gray-900">
-                          {productTitles.get(item.productId) ?? `Product #${item.productId}`}
+                          {productInfo.get(item.productId)?.title ?? `Product #${item.productId}`}
                         </span>
                         <span className="text-gray-500">
                           {' '}
@@ -330,5 +371,132 @@ function OrderRow({
         </tr>
       )}
     </>
+  );
+}
+
+interface OrderDetailModalProps {
+  order: Order;
+  productInfo: Map<number, { title: string; image: string | null }>;
+  onClose: () => void;
+}
+
+/** Large, high-readability popup with full order + customer + product details. */
+function OrderDetailModal({ order, productInfo, onClose }: OrderDetailModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Order ${order.id} details`}
+    >
+      <div
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 border-b border-gray-200 bg-gray-50 px-6 py-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Order Details
+            </p>
+            <h2 className="mt-0.5 text-2xl font-black text-gray-900">Order #{order.id}</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span
+              className={`rounded-full px-3 py-1 text-sm font-bold ${
+                STATUS_STYLES[order.status] ?? 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {order.status}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close order details"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 text-xl font-bold text-gray-600 transition-colors hover:bg-gray-100"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+          {/* Customer */}
+          <div className="rounded-2xl border-2 border-indigo-100 bg-indigo-50/50 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500">
+              Customer
+            </p>
+            <p className="mt-1 text-2xl font-black text-gray-900">{order.customerName}</p>
+            <p className="mt-2 text-xl font-semibold text-gray-800">📞 {order.phone}</p>
+            <p className="mt-1 text-lg text-gray-700">📍 {order.address}</p>
+            <p className="mt-2 text-base text-gray-500">
+              💳 {order.paymentMethod} · placed {formatDate(order.createdAt)}
+            </p>
+          </div>
+
+          {/* Items */}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Products
+            </p>
+            <ul className="mt-2 space-y-3">
+              {order.items.map((item) => {
+                const info = productInfo.get(item.productId);
+                const image = assetUrl(info?.image ?? null);
+                return (
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-4 rounded-2xl border border-gray-200 p-4"
+                  >
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                      {image ? (
+                        <Image
+                          src={image}
+                          alt={info?.title ?? `Product ${item.productId}`}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-2xl text-gray-400">
+                          📦
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">
+                          Code #{item.productId}
+                        </span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          {info?.title ?? `Product #${item.productId}`}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-base text-gray-600">
+                        Size {item.size} · Quantity {item.quantity} ·{' '}
+                        <span className="font-semibold">{formatPrice(item.price)} each</span>
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-xl font-bold text-gray-900">
+                      {formatPrice(item.price * item.quantity)}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+
+        {/* Footer / total */}
+        <div className="flex items-center justify-between gap-4 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          <p className="text-base font-semibold text-gray-600">
+            {order.items.reduce((sum, i) => sum + i.quantity, 0)} item(s) · {order.paymentMethod}
+          </p>
+          <p className="text-2xl font-black text-gray-900">{formatPrice(order.totalAmount)}</p>
+        </div>
+      </div>
+    </div>
   );
 }

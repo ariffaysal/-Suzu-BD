@@ -4,10 +4,11 @@ import { useState } from 'react';
 import AdminGuard from '@/components/admin/AdminGuard';
 import ProductsManager from '@/components/admin/ProductsManager';
 import CategoriesManager from '@/components/admin/CategoriesManager';
+import OrdersManager from '@/components/admin/OrdersManager';
 import { useAuth } from '@/context/AuthContext';
 import Button from '@/components/ui/Button';
 
-type Tab = 'products' | 'categories';
+type Tab = 'products' | 'categories' | 'orders';
 
 export default function AdminPage() {
   const { admin, logout } = useAuth();
@@ -16,6 +17,7 @@ export default function AdminPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'products', label: 'Products' },
     { key: 'categories', label: 'Categories' },
+    { key: 'orders', label: 'Orders' },
   ];
 
   return (
@@ -30,8 +32,8 @@ export default function AdminPage() {
               Welcome{admin?.name ? `, ${admin.name}` : ''} 👋
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Manage products, prices, images and categories — changes save straight to the
-              database.
+              Manage products, prices, images, categories and orders — changes save straight to
+              the database.
             </p>
           </div>
           <Button variant="outline" onClick={logout}>
@@ -47,9 +49,7 @@ export default function AdminPage() {
               type="button"
               onClick={() => setTab(t.key)}
               className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-colors sm:flex-none ${
-                tab === t.key
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                tab === t.key ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               {t.label}
@@ -58,7 +58,9 @@ export default function AdminPage() {
         </div>
 
         <div className="mt-6">
-          {tab === 'products' ? <ProductsManager /> : <CategoriesManager />}
+          {tab === 'products' && <ProductsManager />}
+          {tab === 'categories' && <CategoriesManager />}
+          {tab === 'orders' && <OrdersManager />}
         </div>
       </div>
     </AdminGuard>

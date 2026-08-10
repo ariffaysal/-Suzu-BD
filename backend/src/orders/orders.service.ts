@@ -2,7 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
-export const ORDER_STATUSES = ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED'] as const;
+export const ORDER_STATUSES = [
+  'PENDING',
+  'CONFIRMED',
+  'PROCESSING',
+  'DELIVERED',
+  'CANCELLED',
+] as const;
 
 @Injectable()
 export class OrdersService {
@@ -99,5 +105,14 @@ export class OrdersService {
       data: { status },
       include: { items: true },
     });
+  }
+
+  async remove(id: number) {
+    const existing = await this.prisma.order.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Order ${id} not found`);
+    }
+    await this.prisma.order.delete({ where: { id } });
+    return { deleted: true, id };
   }
 }

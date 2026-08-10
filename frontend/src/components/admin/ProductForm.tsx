@@ -171,7 +171,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Regular price ($) *
+                Regular price (BDT) *
               </label>
               <input
                 type="number"
@@ -186,7 +186,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Discount price ($)
+                Discount price (BDT)
               </label>
               <input
                 type="number"

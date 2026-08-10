@@ -2,6 +2,7 @@ import type {
   Category,
   CreateCategoryInput,
   CreateProductInput,
+  Order,
   Product,
   UploadResponse,
 } from '@/types';
@@ -98,6 +99,26 @@ export function createCategory(input: CreateCategoryInput) {
 
 export function deleteCategory(id: number) {
   return adminFetch<{ deleted: boolean; id: number }>(`/categories/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ---------- Orders ----------
+
+export function getOrders() {
+  return adminFetch<Order[]>('/orders');
+}
+
+export function updateOrderStatus(id: number, status: string) {
+  return adminFetch<Order>(`/orders/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function deleteOrder(id: number) {
+  return adminFetch<{ deleted: boolean; id: number }>(`/orders/${id}`, {
     method: 'DELETE',
   });
 }

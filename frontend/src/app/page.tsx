@@ -182,7 +182,7 @@ export default async function HomePage() {
       <section className="grid gap-4 sm:grid-cols-3">
         {[
           { title: 'Cash on Delivery', text: 'Pay when your order arrives' },
-          { title: 'Free Shipping', text: 'On orders over $100' },
+          { title: 'Free Shipping', text: 'On orders over ৳10,000' },
           { title: 'Easy Returns', text: '7-day return guarantee' },
         ].map((item) => (
           <div key={item.title} className="rounded-2xl border border-gray-200 bg-white p-6">

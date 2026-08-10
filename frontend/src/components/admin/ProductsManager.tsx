@@ -8,10 +8,15 @@ import { assetUrl } from '@/services/api';
 import { formatPrice } from '@/services/format';
 import { adminGetProducts, deleteProduct } from '@/services/admin';
 
+function totalStock(p: Product): number {
+  return p.variants.reduce((sum, v) => sum + v.stock, 0);
+}
+
 export default function ProductsManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -30,16 +35,33 @@ export default function ProductsManager() {
     void load();
   }, [load]);
 
+  const lowCount = useMemo(
+    () => products.filter((p) => totalStock(p) > 0 && totalStock(p) < 5).length,
+    [products],
+  );
+  const outCount = useMemo(
+    () => products.filter((p) => totalStock(p) === 0).length,
+    [products],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.category?.name.toLowerCase().includes(q) ||
-        p.category?.slug.toLowerCase().includes(q),
-    );
-  }, [products, search]);
+    let list = products;
+    if (q) {
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.category?.name.toLowerCase().includes(q) ||
+          p.category?.slug.toLowerCase().includes(q),
+      );
+    }
+    if (stockFilter === 'low') {
+      list = list.filter((p) => totalStock(p) > 0 && totalStock(p) < 5);
+    } else if (stockFilter === 'out') {
+      list = list.filter((p) => totalStock(p) === 0);
+    }
+    return list;
+  }, [products, search, stockFilter]);
 
   async function handleDelete(product: Product) {
     if (
@@ -85,17 +107,57 @@ export default function ProductsManager() {
         </p>
       )}
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name or category…"
-        className="mt-4 w-full max-w-sm rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-      />
+      {(lowCount > 0 || outCount > 0) && (
+        <p className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <span aria-hidden>⚠</span>
+          <span>
+            {outCount > 0 && `${outCount} out of stock`}
+            {outCount > 0 && lowCount > 0 && ' · '}
+            {lowCount > 0 && `${lowCount} low on stock`}
+            {' — restock to keep them available.'}
+          </span>
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or category…"
+          className="w-full max-w-sm rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+        />
+        <div className="flex items-center gap-1.5">
+          {(
+            [
+              ['all', 'All'],
+              ['low', `Low stock (<5)`],
+              ['out', 'Out of stock'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setStockFilter(value)}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                stockFilter === value
+                  ? 'bg-indigo-600 text-white'
+                  : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {filtered.length === 0 ? (
         <p className="mt-10 rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
-          {search ? 'No products match your search.' : 'No products yet — add your first one.'}
+          {search
+            ? 'No products match your search.'
+            : stockFilter !== 'all'
+              ? 'No products match this stock filter.'
+              : 'No products yet — add your first one.'}
         </p>
       ) : (
         <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
@@ -105,14 +167,16 @@ export default function ProductsManager() {
                 <th className="px-4 py-3 font-semibold">Product</th>
                 <th className="hidden px-4 py-3 font-semibold md:table-cell">Category</th>
                 <th className="px-4 py-3 font-semibold">Price</th>
-                <th className="hidden px-4 py-3 font-semibold sm:table-cell">Stock</th>
+                <th className="px-4 py-3 font-semibold">Stock</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map((product) => {
                 const image = assetUrl(product.images[0]?.url);
-                const stock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+                const stock = totalStock(product);
+                const low = stock > 0 && stock < 5;
+                const out = stock === 0;
                 return (
                   <tr key={product.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -153,16 +217,25 @@ export default function ProductsManager() {
                         </p>
                       )}
                     </td>
-                    <td className="hidden px-4 py-3 sm:table-cell">
-                      <span
-                        className={
-                          stock > 0
-                            ? 'font-medium text-green-700'
-                            : 'font-medium text-red-600'
-                        }
-                      >
-                        {stock}
-                      </span>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-bold ${
+                            low || out ? 'text-red-600' : 'text-green-700'
+                          }`}
+                        >
+                          {stock}
+                        </span>
+                        {out ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            Out of stock
+                          </span>
+                        ) : low ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            Low stock
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">

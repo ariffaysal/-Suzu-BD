@@ -41,10 +41,16 @@ export default function ProductForm({ product }: { product?: Product | null }) {
       stock: String(v.stock),
     })) ?? [],
   );
+  const [quickStock, setQuickStock] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const totalStock = variants.reduce(
+    (sum, v) => sum + (v.stock.trim() === '' ? 0 : Number(v.stock)),
+    0,
+  );
 
   useEffect(() => {
     adminGetCategories()
@@ -88,7 +94,9 @@ export default function ProductForm({ product }: { product?: Product | null }) {
   }
 
   function addVariantRow() {
-    setVariants((prev) => [...prev, { size: '', color: '', stock: '' }]);
+    // Seed the first size row with the quick stock so nothing is lost
+    setVariants((prev) => [...prev, { size: '', color: '', stock: quickStock || '' }]);
+    setQuickStock('');
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -97,6 +105,18 @@ export default function ProductForm({ product }: { product?: Product | null }) {
     setSaving(true);
     setError(null);
     try {
+      const hasQuickStock = variants.length === 0 && quickStock.trim() !== '';
+      const normalizedVariants = hasQuickStock
+        ? [{ size: 'One Size', stock: Number(quickStock) }]
+        : variants
+            .map((v) => ({
+              size: v.size.trim(),
+              color: v.color.trim() || undefined,
+              stock: v.stock.trim() === '' ? 0 : Number(v.stock),
+            }))
+            // A row with stock but no size still counts — treat it as "One Size"
+            .map((v) => (v.size === '' && v.stock > 0 ? { ...v, size: 'One Size' } : v))
+            .filter((v) => v.size !== '' || v.stock > 0);
       const input = {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -104,13 +124,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
         discountPrice: discountPrice.trim() === '' ? null : Number(discountPrice),
         categoryId: Number(categoryId),
         images: images.map((url) => ({ url })),
-        variants: variants
-          .filter((v) => v.size.trim() !== '')
-          .map((v) => ({
-            size: v.size.trim(),
-            color: v.color.trim() || undefined,
-            stock: v.stock.trim() === '' ? 0 : Number(v.stock),
-          })),
+        variants: normalizedVariants,
       };
       if (editing && product) {
         await updateProduct(product.id, input);
@@ -279,7 +293,7 @@ export default function ProductForm({ product }: { product?: Product | null }) {
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-sm font-semibold text-gray-700">Sizes / variants</label>
+              <label className="text-sm font-semibold text-gray-700">Stock</label>
               <button
                 type="button"
                 onClick={addVariantRow}
@@ -288,59 +302,106 @@ export default function ProductForm({ product }: { product?: Product | null }) {
                 + Add size
               </button>
             </div>
-            <div className="space-y-2">
-              {variants.length === 0 && (
-                <p className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-xs text-gray-400">
-                  No sizes yet — add a size, color and stock for each variant.
+            {variants.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label className="mb-1 block text-xs font-semibold text-gray-600">
+                  Total stock *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={quickStock}
+                  onChange={(e) => setQuickStock(e.target.value)}
+                  placeholder="e.g. 50"
+                  className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  No sizes added — this stock is saved as a single “One Size” variant. Click “+
+                  Add size” to manage stock per size/color.
                 </p>
-              )}
-              {variants.map((variant, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={variant.size}
-                    onChange={(e) =>
-                      setVariants((prev) =>
-                        prev.map((v, i) => (i === index ? { ...v, size: e.target.value } : v)),
-                      )
-                    }
-                    placeholder="Size (e.g. 42)"
-                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                  />
-                  <input
-                    type="text"
-                    value={variant.color}
-                    onChange={(e) =>
-                      setVariants((prev) =>
-                        prev.map((v, i) => (i === index ? { ...v, color: e.target.value } : v)),
-                      )
-                    }
-                    placeholder="Color (e.g. White)"
-                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    value={variant.stock}
-                    onChange={(e) =>
-                      setVariants((prev) =>
-                        prev.map((v, i) => (i === index ? { ...v, stock: e.target.value } : v)),
-                      )
-                    }
-                    placeholder="Stock"
-                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setVariants((prev) => prev.filter((_, i) => i !== index))}
-                    aria-label="Remove variant"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-200 text-sm text-red-600 transition-colors hover:bg-red-50"
+              </div>
+            ) : (
+              <>
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      totalStock < 5
+                        ? 'bg-red-50 text-red-700'
+                        : 'bg-green-50 text-green-700'
+                    }`}
                   >
-                    ✕
-                  </button>
+                    Total stock: <span className="font-bold">{totalStock}</span>
+                    {totalStock < 5 && <span>· low</span>}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  {variants.map((variant, index) => {
+                    const stockValue =
+                      variant.stock.trim() === '' ? 0 : Number(variant.stock);
+                    const low = stockValue > 0 && stockValue < 5;
+                    const out = stockValue === 0 && variant.stock.trim() !== '';
+                    return (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={variant.size}
+                          onChange={(e) =>
+                            setVariants((prev) =>
+                              prev.map((v, i) =>
+                                i === index ? { ...v, size: e.target.value } : v,
+                              ),
+                            )
+                          }
+                          placeholder="Size (e.g. 42)"
+                          className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        />
+                        <input
+                          type="text"
+                          value={variant.color}
+                          onChange={(e) =>
+                            setVariants((prev) =>
+                              prev.map((v, i) =>
+                                i === index ? { ...v, color: e.target.value } : v,
+                              ),
+                            )
+                          }
+                          placeholder="Color (e.g. White)"
+                          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.stock}
+                          onChange={(e) =>
+                            setVariants((prev) =>
+                              prev.map((v, i) =>
+                                i === index ? { ...v, stock: e.target.value } : v,
+                              ),
+                            )
+                          }
+                          placeholder="Stock"
+                          className={`w-20 rounded-lg border px-3 py-2 text-sm placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
+                            low || out
+                              ? 'border-red-400 bg-red-50 text-red-700'
+                              : 'border-gray-300 text-gray-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVariants((prev) => prev.filter((_, i) => i !== index))
+                          }
+                          aria-label="Remove variant"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-200 text-sm text-red-600 transition-colors hover:bg-red-50"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

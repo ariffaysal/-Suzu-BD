@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import Logo from '@/components/brand/Logo';
 import { getCategories } from '@/services/products';
@@ -54,8 +55,26 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
+function LockIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 export default function Header() {
   const { totalItems } = useCart();
+  const { isAuthenticated } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuOpen, setMenuOpen] = useState(false); // desktop mega-menu
   const [mobileOpen, setMobileOpen] = useState(false); // mobile drawer
@@ -215,8 +234,18 @@ export default function Header() {
           </div>
         </nav>
 
-        {/* Right side: hamburger (mobile) + cart */}
+        {/* Right side: hamburger (mobile) + admin login + cart */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href={isAuthenticated ? '/admin' : '/admin/login'}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-800 transition-colors hover:bg-gray-100 sm:h-auto sm:w-auto sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm sm:font-semibold"
+            title={isAuthenticated ? 'Admin dashboard' : 'Admin login (staff only)'}
+            aria-label={isAuthenticated ? 'Admin dashboard' : 'Admin login'}
+          >
+            <LockIcon />
+            <span className="hidden sm:inline">{isAuthenticated ? 'Admin' : 'Login'}</span>
+          </Link>
+
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
@@ -347,6 +376,16 @@ export default function Header() {
                 <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
               </svg>
               View Cart{totalItems > 0 ? ` (${totalItems})` : ''}
+            </Link>
+
+            {/* Admin shortcut */}
+            <Link
+              href={isAuthenticated ? '/admin' : '/admin/login'}
+              onClick={closeMobile}
+              className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-3.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100"
+            >
+              <LockIcon />
+              {isAuthenticated ? 'Admin Dashboard' : 'Admin Login'}
             </Link>
           </div>
         </div>

@@ -80,3 +80,10 @@ export interface HeroSlide {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Admin identity as returned by the JWT payload from GET /api/auth/me. */
+export interface Admin {
+  sub: number;
+  email: string;
+  name?: string | null;
+}

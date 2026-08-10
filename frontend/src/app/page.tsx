@@ -110,6 +110,7 @@ export default async function HomePage() {
                   title="Men Collection"
                   tagline="Sneakers, formal shoes, boots and more — built to last."
                   categories={menGroup.categories}
+                  href="/products?collection=men"
                 />
               )}
               {womenGroup && (
@@ -118,6 +119,7 @@ export default async function HomePage() {
                   title="Women Collection"
                   tagline="Trendy, comfortable styles for every occasion."
                   categories={womenGroup.categories}
+                  href="/products?collection=women"
                 />
               )}
             </div>

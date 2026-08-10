@@ -87,3 +87,29 @@ export interface Admin {
   email: string;
   name?: string | null;
 }
+
+export type Collection = 'MEN' | 'WOMEN' | 'ACCESSORIES';
+
+export interface CreateProductInput {
+  title: string;
+  slug?: string;
+  description?: string;
+  regularPrice: number;
+  discountPrice?: number | null;
+  categoryId: number;
+  variants?: { size: string; color?: string | null; stock?: number }[];
+  images?: { url: string }[];
+}
+
+export interface CreateCategoryInput {
+  name: string;
+  slug?: string;
+  collection?: Collection;
+}
+
+export interface UploadResponse {
+  url: string;
+  originalName: string;
+  size: number;
+  mimeType: string;
+}

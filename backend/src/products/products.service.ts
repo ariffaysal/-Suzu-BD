@@ -49,6 +49,23 @@ export class ProductsService {
     }
   }
 
+  async removeCategory(id: number) {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { _count: { select: { products: true } } },
+    });
+    if (!category) {
+      throw new NotFoundException(`Category ${id} not found`);
+    }
+    if (category._count.products > 0) {
+      throw new BadRequestException(
+        `Cannot delete category "${category.name}" — ${category._count.products} product(s) still belong to it. Move or delete them first.`,
+      );
+    }
+    await this.prisma.category.delete({ where: { id } });
+    return { deleted: true, id };
+  }
+
   // ---------- Products ----------
 
   async findAll(query: {

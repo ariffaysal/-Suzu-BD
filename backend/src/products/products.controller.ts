@@ -32,6 +32,11 @@ export class ProductsController {
     return this.productsService.createCategory(dto);
   }
 
+  @Delete('categories/:id')
+  removeCategory(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.removeCategory(id);
+  }
+
   // ---------- Products ----------
 
   @Public()

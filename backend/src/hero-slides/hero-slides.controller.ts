@@ -14,7 +14,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateHeroSlideDto } from './dto/create-hero-slide.dto';
 import { UpdateHeroSlideDto } from './dto/update-hero-slide.dto';
-import { HeroSlidesService, heroSlideMulterOptions } from './hero-slides.service';
+import {
+  HeroSlidesService,
+  heroSlideMulterOptions,
+} from './hero-slides.service';
 
 @Controller('hero-slides')
 export class HeroSlidesController {
@@ -35,7 +38,10 @@ export class HeroSlidesController {
 
   @Post()
   @UseInterceptors(FileInterceptor('file', heroSlideMulterOptions))
-  create(@Body() body: CreateHeroSlideDto, @UploadedFile() file?: Express.Multer.File) {
+  create(
+    @Body() body: CreateHeroSlideDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
     return this.heroSlidesService.create(body, file);
   }
 

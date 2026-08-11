@@ -107,7 +107,10 @@ export class ProductsService {
     // Server-side pagination — the page size is validated in the controller and
     // capped here, so even a hostile request can never return an unbounded list.
     const page = Math.max(1, query.page ?? 1);
-    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE));
+    const limit = Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE),
+    );
     const [items, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
@@ -182,11 +185,19 @@ export class ProductsService {
         data: {
           ...(dto.title !== undefined && { title: dto.title }),
           ...(dto.slug !== undefined && { slug: dto.slug }),
-          ...(dto.description !== undefined && { description: dto.description }),
-          ...(dto.regularPrice !== undefined && { regularPrice: dto.regularPrice }),
-          ...(dto.discountPrice !== undefined && { discountPrice: dto.discountPrice }),
+          ...(dto.description !== undefined && {
+            description: dto.description,
+          }),
+          ...(dto.regularPrice !== undefined && {
+            regularPrice: dto.regularPrice,
+          }),
+          ...(dto.discountPrice !== undefined && {
+            discountPrice: dto.discountPrice,
+          }),
           ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
-          ...(dto.variants !== undefined && { variants: { create: dto.variants } }),
+          ...(dto.variants !== undefined && {
+            variants: { create: dto.variants },
+          }),
           ...(dto.images !== undefined && { images: { create: dto.images } }),
         },
         include: productInclude,

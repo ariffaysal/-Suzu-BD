@@ -30,7 +30,8 @@ export class ProductImageDto {
   @IsString()
   @IsNotEmpty()
   @Matches(/^(https?:\/\/|\/)/, {
-    message: 'url must be an absolute URL or a root-relative path (e.g. /uploads/x.png)',
+    message:
+      'url must be an absolute URL or a root-relative path (e.g. /uploads/x.png)',
   })
   url!: string;
 }

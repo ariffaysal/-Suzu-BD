@@ -246,8 +246,11 @@ const products: SeedProduct[] = [
   },
 ];
 
-// Homepage hero banner slides. Images live in backend/uploads/hero-slides/
-// (served at /uploads/hero-slides/*). Upload new ones via the admin API:
+// Homepage hero banner slides. Local dev references files in
+// backend/uploads/hero-slides/ (served at /uploads/hero-slides/*); the seeded
+// URLs below are absolute picsum.photos placeholders so a fresh production
+// database (Vercel + private Postgres) renders banners with zero extra setup.
+// Replace them via the admin API:
 //   POST /api/hero-slides  (multipart: file, title, subtitle, position, isActive)
 interface SeedHeroSlide {
   imageUrl: string;
@@ -258,49 +261,49 @@ interface SeedHeroSlide {
 
 const heroSlides: SeedHeroSlide[] = [
   {
-    imageUrl: '/uploads/hero-slides/hero-sneakers-redtape.png',
+    imageUrl: 'https://picsum.photos/seed/hero-sneakers-redtape/1600/900',
     title: 'New Season Collection',
     subtitle: 'Premium sneakers, running shoes and formal footwear — delivered to your door.',
     position: 1,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-sneakers-brown.png',
+    imageUrl: 'https://picsum.photos/seed/hero-sneakers-brown/1600/900',
     title: 'Step Into Style',
     subtitle: 'Casual comfort engineered for everyday wear.',
     position: 2,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-loafers-black.png',
+    imageUrl: 'https://picsum.photos/seed/hero-loafers-black/1600/900',
     title: 'Formal Footwear',
     subtitle: 'Refined leather loafers for office and evening.',
     position: 3,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-pumps-black.png',
+    imageUrl: 'https://picsum.photos/seed/hero-pumps-black/1600/900',
     title: 'Elegant Heels',
     subtitle: 'Sleek pointed pumps with a kitten heel.',
     position: 4,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-jelly-flats.png',
+    imageUrl: 'https://picsum.photos/seed/hero-jelly-flats/1600/900',
     title: 'Everyday Comfort',
     subtitle: 'Soft, flexible flats for all-day wear.',
     position: 5,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-loafers-cream.png',
+    imageUrl: 'https://picsum.photos/seed/hero-loafers-cream/1600/900',
     title: 'Classic Loafers',
     subtitle: 'Timeless quilted patent loafers.',
     position: 6,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-watch-rosegold.png',
+    imageUrl: 'https://picsum.photos/seed/hero-watch-rosegold/1600/900',
     title: 'Timeless Accessories',
     subtitle: 'Elegant watches to complete the look.',
     position: 7,
   },
   {
-    imageUrl: '/uploads/hero-slides/hero-watch-black.png',
+    imageUrl: 'https://picsum.photos/seed/hero-watch-black/1600/900',
     title: 'Statement Timepieces',
     subtitle: 'Bold, modern designs for every wrist.',
     position: 8,

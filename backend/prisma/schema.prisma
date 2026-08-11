@@ -3,11 +3,19 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Vercel Functions run Node on Amazon Linux 2023 (OpenSSL 3.0), which needs
+  // the RHEL engine binary. `native` keeps local dev fast; both are bundled so
+  // one `prisma generate` covers local and serverless runtimes.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Used by Prisma CLI (migrations) when DATABASE_URL points at a connection
+  // pooler (e.g. Neon pooled URL with ?pgbouncer=true). Direct connections are
+  // required for DDL. Locally both can point at the same URL.
+  directUrl = env("DIRECT_URL")
 }
 
 enum Collection {
@@ -99,4 +107,28 @@ model HeroSlide {
 
   @@index([position])
   @@index([isActive])
+}
+
+// Guest shopping carts, persisted in Postgres instead of memory so carts
+// survive restarts and multiple serverless instances. The client id is the
+// browser-generated UUID sent as the `x-client-id` header (capped at 64 chars
+// in the controller). Bounded in CartService: 50 lines and 99 qty per line.
+model Cart {
+  clientId  String     @id
+  items     CartItem[]
+  updatedAt DateTime   @default(now()) // bumped on every mutation; stale carts are swept
+
+  @@index([updatedAt])
+}
+
+model CartItem {
+  id        Int    @id @default(autoincrement())
+  cartId    String
+  cart      Cart   @relation(fields: [cartId], references: [clientId], onDelete: Cascade)
+  productId Int
+  size      String
+  color     String?
+  quantity  Int    @default(1)
+
+  @@unique([cartId, productId, size])
 }

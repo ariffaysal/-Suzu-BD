@@ -16,7 +16,8 @@ import { PrismaService } from './../src/prisma/prisma.service';
  * different Postgres (e.g. in CI).
  */
 const TEST_DB_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://footwear:footwear@localhost:5433/footwear_test';
+  process.env.TEST_DATABASE_URL ??
+  'postgresql://footwear:footwear@localhost:5433/footwear_test';
 
 const PRODUCT_COUNT = 30; // > default page size (24) so listing spans two pages
 
@@ -27,14 +28,19 @@ describe('Pagination (e2e)', () => {
 
   beforeAll(async () => {
     // Recreate the test schema (idempotent; wipes any previous test data).
-    execSync('npx --no-install prisma db push --force-reset --skip-generate --accept-data-loss', {
-      cwd: join(__dirname, '..'),
-      env: { ...process.env, DATABASE_URL: TEST_DB_URL },
-      stdio: 'ignore',
-      timeout: 120_000,
-    });
+    execSync(
+      'npx --no-install prisma db push --force-reset --skip-generate --accept-data-loss',
+      {
+        cwd: join(__dirname, '..'),
+        env: { ...process.env, DATABASE_URL: TEST_DB_URL },
+        stdio: 'ignore',
+        timeout: 120_000,
+      },
+    );
 
-    testPrisma = new PrismaClient({ datasources: { db: { url: TEST_DB_URL } } });
+    testPrisma = new PrismaClient({
+      datasources: { db: { url: TEST_DB_URL } },
+    });
     await testPrisma.$connect();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -47,7 +53,9 @@ describe('Pagination (e2e)', () => {
     // Mirror main.ts bootstrap so routes match the real API surface.
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
     await app.init();
 
     await seed(testPrisma);
@@ -63,7 +71,9 @@ describe('Pagination (e2e)', () => {
 
   describe('GET /api/products (public)', () => {
     it('returns the first page with the default page size and envelope', async () => {
-      const res = await request(app.getHttpServer()).get('/api/products').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/products')
+        .expect(200);
       expect(res.body).toEqual({
         items: expect.any(Array),
         total: PRODUCT_COUNT,
@@ -78,7 +88,12 @@ describe('Pagination (e2e)', () => {
       const res = await request(app.getHttpServer())
         .get('/api/products?page=2&limit=5')
         .expect(200);
-      expect(res.body).toMatchObject({ page: 2, limit: 5, total: PRODUCT_COUNT, totalPages: 6 });
+      expect(res.body).toMatchObject({
+        page: 2,
+        limit: 5,
+        total: PRODUCT_COUNT,
+        totalPages: 6,
+      });
       expect(res.body.items).toHaveLength(5);
     });
 
@@ -91,7 +106,9 @@ describe('Pagination (e2e)', () => {
     });
 
     it('caps limit at 500', async () => {
-      const res = await request(app.getHttpServer()).get('/api/products?limit=9999').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/products?limit=9999')
+        .expect(200);
       expect(res.body.limit).toBe(500);
       expect(res.body.items).toHaveLength(PRODUCT_COUNT);
     });
@@ -114,8 +131,12 @@ describe('Pagination (e2e)', () => {
     });
 
     it('rejects non-numeric page/limit with 400', async () => {
-      await request(app.getHttpServer()).get('/api/products?page=abc').expect(400);
-      await request(app.getHttpServer()).get('/api/products?limit=abc').expect(400);
+      await request(app.getHttpServer())
+        .get('/api/products?page=abc')
+        .expect(400);
+      await request(app.getHttpServer())
+        .get('/api/products?limit=abc')
+        .expect(400);
     });
   });
 
@@ -151,7 +172,12 @@ describe('Pagination (e2e)', () => {
         .get('/api/orders?page=2&limit=2')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
-      expect(res.body).toMatchObject({ total: 4, page: 2, limit: 2, totalPages: 2 });
+      expect(res.body).toMatchObject({
+        total: 4,
+        page: 2,
+        limit: 2,
+        totalPages: 2,
+      });
       expect(res.body.items).toHaveLength(2);
     });
 
@@ -186,7 +212,9 @@ describe('Pagination (e2e)', () => {
         .get('/api/orders/stats')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
-      const byKey = Object.fromEntries(res.body.map((s: { key: string }) => [s.key, s]));
+      const byKey = Object.fromEntries(
+        res.body.map((s: { key: string }) => [s.key, s]),
+      );
       expect(Object.keys(byKey).sort()).toEqual(['1d', '30d', '7d', 'all']);
       // 3 recent orders (100 + 250 + 650) + 1 order from 45 days ago (500).
       expect(byKey['1d']).toEqual({ key: '1d', count: 3, total: 1000 });
@@ -222,7 +250,9 @@ async function seed(prisma: PrismaClient): Promise<void> {
     take: 3,
   });
 
-  const item = (productId: number) => [{ productId, size: '40', quantity: 1, price: 10 }];
+  const item = (productId: number) => [
+    { productId, size: '40', quantity: 1, price: 10 },
+  ];
 
   // Three recent orders (inside the 1d/7d/30d windows)…
   const recent = [

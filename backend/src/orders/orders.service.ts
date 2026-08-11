@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -30,7 +34,9 @@ export class OrdersService {
       where: { id: { in: productIds } },
       include: { variants: true },
     });
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
     // Prices are always computed server-side from the DB, never trusted from the client.
     const orderItems = dto.items.map((item) => {
@@ -45,7 +51,12 @@ export class OrdersService {
         );
       }
       const price = product.discountPrice ?? product.regularPrice;
-      return { productId: item.productId, size: item.size, quantity: item.quantity, price };
+      return {
+        productId: item.productId,
+        size: item.size,
+        quantity: item.quantity,
+        price,
+      };
     });
 
     // Aggregate requested quantities per variant. Duplicate line entries for the
@@ -54,7 +65,10 @@ export class OrdersService {
     const requestedByVariant = new Map<string, number>();
     for (const item of orderItems) {
       const key = `${item.productId}:${item.size}`;
-      requestedByVariant.set(key, (requestedByVariant.get(key) ?? 0) + item.quantity);
+      requestedByVariant.set(
+        key,
+        (requestedByVariant.get(key) ?? 0) + item.quantity,
+      );
     }
     for (const [key, total] of requestedByVariant) {
       const [productId, size] = key.split(':');
@@ -112,7 +126,10 @@ export class OrdersService {
 
   async findAll(query: { page?: number; limit?: number }) {
     const page = Math.max(1, query.page ?? 1);
-    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE));
+    const limit = Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE),
+    );
     const [items, total] = await Promise.all([
       this.prisma.order.findMany({
         include: { items: true },
@@ -145,7 +162,11 @@ export class OrdersService {
           this.prisma.order.count({ where }),
           this.prisma.order.aggregate({ where, _sum: { totalAmount: true } }),
         ]);
-        return { key: period.key, count, total: aggregate._sum.totalAmount ?? 0 };
+        return {
+          key: period.key,
+          count,
+          total: aggregate._sum.totalAmount ?? 0,
+        };
       }),
     );
     return results;

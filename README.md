@@ -11,8 +11,8 @@ footwear-ecommerce/
 
 ## Stack
 
-- **Backend:** NestJS 11, Prisma 6, PostgreSQL, JWT (admin auth), Multer (image uploads)
-- **Frontend:** Next.js 15 (App Router), React 19, Tailwind CSS v4, TypeScript
+- **Backend:** NestJS 11, Prisma 6, PostgreSQL, JWT (admin auth), Multer + Vercel Blob (image uploads)
+- **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, TypeScript
 - **Payments:** Cash on Delivery (COD) only
 
 ## Quick start
@@ -80,61 +80,112 @@ Storefront: `http://localhost:3000`
 
 Send the JWT as `Authorization: Bearer <token>`.
 
-## Production deployment
+## Production deployment (Vercel)
 
-1. **Environment variables** — copy the templates and fill in real values:
+The backend (NestJS) and frontend (Next.js) deploy as **two separate Vercel projects**
+under your team (e.g. `ariffaysals-projects`). The API runs as a single Fluid-compute
+function (Vercel's zero-config NestJS support — entrypoint `src/main.ts`), and the
+storefront runs as a normal Next.js app. Data lives in a **private managed Postgres**
+(Neon, via the Vercel Postgres integration) and images in **Vercel Blob**.
 
-   ```bash
-   cp backend/.env.example backend/.env
-   cp frontend/.env.example frontend/.env.local
-   ```
+> What changed to make this deployable:
+> - **Cart is now DB-backed** (Postgres) instead of in-memory — carts survive
+>   serverless restarts and scale-out.
+> - **Uploads support Vercel Blob** — when `BLOB_READ_WRITE_TOKEN` is set, uploaded
+>   images go to Blob (the function filesystem is ephemeral); without it, the old
+>   `./uploads` behavior is kept for local dev.
+> - **Prisma** is configured for the Vercel runtime (`binaryTargets` includes
+>   `rhel-openssl-3.0.x`) and reads `DIRECT_URL` for migrations when `DATABASE_URL`
+>   is a pooled Neon URL.
 
-   Required changes before going live:
+### 1. Prerequisites
 
-   - `JWT_SECRET` — a strong random value (≥ 32 chars). Generate with `openssl rand -base64 48`.
-   - `DATABASE_URL` — point at your production PostgreSQL (use SSL: `?sslmode=require`).
-   - `CORS_ORIGINS` — the public storefront origin(s), e.g. `https://store.example.com`.
-   - `NODE_ENV=production` and `TRUST_PROXY_HOPS=1` when behind a reverse proxy.
-   - `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_ORIGIN` — the public API URL. **Note:**
-     they are baked into the client bundle at build time — rebuild the frontend after
-     changing them.
+```bash
+vercel login            # once, opens a browser
+```
 
-2. **Database** — apply migrations and seed once:
+### 2. Create the private database (Neon / Vercel Postgres)
 
-   ```bash
-   cd backend
-   npm run db:generate
-   npm run db:deploy        # prisma migrate deploy (safe for production)
-   npm run db:seed          # admin user + categories + sample products
-   ```
+In the Vercel dashboard: **Storage → Create → Postgres** (powered by Neon).
+This is a private managed database: it is not exposed publicly, only the connection
+string (credentials + host) grants access, and the connection requires SSL.
+Copy two URLs from the created store:
 
-   **Change the seeded admin password immediately** (`admin@footwear.com` / `admin123`)
-   — it is documented in this README and publicly known.
+- `DATABASE_URL` — the **pooled** URL (has `?sslmode=require&pgbouncer=true`)
+- `DIRECT_URL` — the **direct** URL (has `?sslmode=require`), used for migrations
 
-3. **Build & run:**
+Optionally enable an **IP allowlist** on the store for extra protection.
 
-   ```bash
-   cd backend && npm run build && NODE_ENV=production node dist/main
-   cd frontend && npm run build && npm start   # next start
-   ```
+Also create a **Blob store** (Storage → Create → Blob) and copy `BLOB_READ_WRITE_TOKEN`.
 
-4. **Put both behind a reverse proxy (nginx / Caddy) with TLS.** The API must only
-   be reachable through the proxy: rate limiting keys on the real client IP via
-   `X-Forwarded-For`, and the proxy should overwrite that header so it can't be spoofed.
-   Add the public API host to `frontend/next.config.ts` → `images.remotePatterns` so
-   `next/image` can optimize uploaded product images.
+### 3. Backend project
 
-5. **Before launch checklist:** change the admin password; verify `JWT_SECRET` is
-   random; confirm `CORS_ORIGINS` matches the real domain; restrict `POST /api/auth/register`
-   to trusted admins (the endpoint creates admin accounts); back up the DB and `uploads/`.
+```bash
+cd backend
+vercel link --yes                       # create/link the Vercel project
+vercel env add DATABASE_URL             # pooled URL  (Production, Preview)
+vercel env add DIRECT_URL               # direct URL  (Production, Preview)
+vercel env add JWT_SECRET               # openssl rand -base64 48
+vercel env add JWT_EXPIRES_IN           # e.g. 7d
+vercel env add CORS_ORIGINS             # e.g. https://suzu-bd.vercel.app
+vercel env add TRUST_PROXY_HOPS         # 1
+vercel env add BLOB_READ_WRITE_TOKEN    # from the Blob store
+```
+
+Apply migrations and seed **once**, from your machine against the new DB
+(Prisma CLI uses `DIRECT_URL` for DDL):
+
+```bash
+# point Prisma at the new DB for this one command (does not touch .env):
+export DATABASE_URL='<pooled url>'
+export DIRECT_URL='<direct url>'
+npm run db:deploy      # prisma migrate deploy
+npm run db:seed        # admin + categories + products + hero slides
+unset DATABASE_URL DIRECT_URL
+```
+
+Deploy:
+
+```bash
+vercel --prod
+```
+
+Sanity check: `curl https://<backend-project>.vercel.app/api/health` →
+`{"status":"ok","database":"up"}`.
+
+### 4. Frontend project
+
+`NEXT_PUBLIC_*` values are baked into the bundle **at build time** — set them before
+the first deploy and redeploy after changing them.
+
+```bash
+cd frontend
+vercel link --yes
+vercel env add NEXT_PUBLIC_API_URL      # https://<backend-project>.vercel.app/api
+vercel env add NEXT_PUBLIC_API_ORIGIN   # https://<backend-project>.vercel.app
+vercel --prod
+```
+
+### 5. Before launch checklist
+
+- **Change the seeded admin password** (`admin@footwear.com` / `admin123` is publicly
+  documented). Log in at `/admin/login`, or `PATCH` via the API after login.
+- Verify `JWT_SECRET` is a fresh random value (≥ 32 chars).
+- Confirm `CORS_ORIGINS` on the backend matches the real storefront domain exactly.
+- Consider restricting `POST /api/auth/register` (it creates admin accounts).
+
+## Local development
+
+Same as before: `docker compose up -d`, then `cd backend && npm i && npm run db:migrate
+&& npm run db:seed && npm run start:dev`, then `cd frontend && npm i && npm run dev`.
 
 ## Notes
 
 - The cart is session-based: the client generates a UUID, sends it as the `x-client-id`
-  header, and the backend keeps it in memory (swap for Redis for multi-instance).
-  The store is bounded (max 10k carts, 50 lines/cart, 99 qty/line) to resist abuse.
-- Uploaded images are stored in `backend/uploads/` and served at `/uploads/*`.
-  Only PNG/JPG/GIF/WebP/AVIF are accepted and verified by magic bytes; SVG is rejected
-  (embedded-script risk).
+  header, and the backend stores the cart in Postgres. Bounded per cart (50 lines,
+  99 qty/line); idle carts are swept after 90 days.
+- Uploaded images go to Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set, otherwise to
+  `backend/uploads/` served at `/uploads/*`. Only PNG/JPG/GIF/WebP/AVIF are accepted
+  and verified by magic bytes; SVG is rejected (embedded-script risk).
 - `backend/.env` and `frontend/.env.local` hold local config — never commit them.
   Templates live in `backend/.env.example` and `frontend/.env.example`.

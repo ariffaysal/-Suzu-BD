@@ -7,8 +7,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { join } from 'path';
-import { assertValidImageFile, multerOptions, UPLOAD_DIR } from './uploads.service';
+import { multerOptions, persistUploadedFile } from './uploads.service';
 
 @Controller('uploads')
 export class UploadsController {
@@ -16,15 +15,15 @@ export class UploadsController {
   @Post()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @UseInterceptors(FileInterceptor('file', multerOptions))
-  upload(@UploadedFile() file?: Express.Multer.File) {
+  async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    // Never trust the client's MIME type or extension alone — verify the real
-    // bytes before keeping the file on disk.
-    assertValidImageFile(file, join(UPLOAD_DIR, file.filename));
+    // Never trust the client's MIME type or extension alone — the real bytes
+    // are verified before the file is kept (on disk or in Vercel Blob).
+    const { url } = await persistUploadedFile(file);
     return {
-      url: `/uploads/${file.filename}`,
+      url,
       originalName: file.originalname,
       size: file.size,
       mimeType: file.mimetype,

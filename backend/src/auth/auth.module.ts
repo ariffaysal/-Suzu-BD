@@ -19,7 +19,6 @@ import { AuthService } from './auth.service';
         return {
           secret,
           signOptions: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '7d') as any,
           },
         };

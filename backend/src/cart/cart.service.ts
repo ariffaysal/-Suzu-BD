@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 
@@ -23,91 +27,137 @@ export interface CartLineItem {
   lineTotal: number;
 }
 
-// In-memory session store keyed by a client id (e.g. generated UUID stored in the
-// browser). Swap for Redis in production for multi-instance support.
-//
-// The client id is attacker-controlled, so the store is bounded: a fixed number
-// of carts, a fixed number of lines per cart, and a fixed max quantity per line
-// prevent an attacker from growing memory without limit.
+/**
+ * Session cart keyed by a client id (browser-generated UUID sent as the
+ * `x-client-id` header). Carts live in Postgres — not memory — so they survive
+ * restarts and work across multiple serverless instances.
+ *
+ * The client id is attacker-controlled, so it is capped in the controller
+ * (64 chars) and the cart itself is bounded here: a fixed number of lines per
+ * cart and a fixed max quantity per line. Idle carts are swept after
+ * CART_TTL_MS so abandoned client ids cannot grow the table without limit.
+ */
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly carts = new Map<string, CartLine[]>();
-
-  private static readonly MAX_CARTS = 10_000;
   private static readonly MAX_LINES_PER_CART = 50;
   private static readonly MAX_QUANTITY_PER_LINE = 99;
+  private static readonly CART_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
   async getCart(clientId: string) {
-    return this.enrich(this.carts.get(clientId) ?? []);
+    const cart = await this.prisma.cart.findUnique({
+      where: { clientId },
+      include: { items: true },
+    });
+    return this.enrich(cart?.items ?? []);
   }
 
   async addItem(clientId: string, dto: AddCartItemDto) {
     await this.assertVariantExists(dto.productId, dto.size);
-    const quantity = Math.min(dto.quantity ?? 1, CartService.MAX_QUANTITY_PER_LINE);
-    const lines = this.carts.get(clientId) ?? [];
-    const existing = lines.find(
-      (line) => line.productId === dto.productId && line.size === dto.size,
+    const quantity = Math.min(
+      dto.quantity ?? 1,
+      CartService.MAX_QUANTITY_PER_LINE,
     );
-    if (existing) {
-      existing.quantity = Math.min(
-        existing.quantity + quantity,
-        CartService.MAX_QUANTITY_PER_LINE,
-      );
-    } else {
-      if (lines.length >= CartService.MAX_LINES_PER_CART) {
-        throw new BadRequestException(
-          `Cart is full (max ${CartService.MAX_LINES_PER_CART} items)`,
-        );
-      }
-      lines.push({
-        productId: dto.productId,
-        size: dto.size,
-        color: dto.color ?? null,
-        quantity,
+
+    await this.prisma.$transaction(async (tx) => {
+      const cart = await tx.cart.upsert({
+        where: { clientId },
+        update: { updatedAt: new Date() },
+        create: { clientId },
+        include: { items: true },
       });
-    }
-    this.evictOldestIfNeeded();
-    this.carts.set(clientId, lines);
-    return this.enrich(lines);
+
+      const existing = cart.items.find(
+        (line) => line.productId === dto.productId && line.size === dto.size,
+      );
+      if (existing) {
+        await tx.cartItem.update({
+          where: { id: existing.id },
+          data: {
+            quantity: Math.min(
+              existing.quantity + quantity,
+              CartService.MAX_QUANTITY_PER_LINE,
+            ),
+          },
+        });
+      } else {
+        if (cart.items.length >= CartService.MAX_LINES_PER_CART) {
+          throw new BadRequestException(
+            `Cart is full (max ${CartService.MAX_LINES_PER_CART} items)`,
+          );
+        }
+        await tx.cartItem.create({
+          data: {
+            cartId: clientId,
+            productId: dto.productId,
+            size: dto.size,
+            color: dto.color ?? null,
+            quantity,
+          },
+        });
+      }
+    });
+
+    await this.sweepExpiredCarts();
+    return this.getCart(clientId);
   }
 
-  async updateQuantity(clientId: string, productId: number, size: string, quantity: number) {
-    const lines = this.carts.get(clientId) ?? [];
-    const line = lines.find((l) => l.productId === productId && l.size === size);
+  async updateQuantity(
+    clientId: string,
+    productId: number,
+    size: string,
+    quantity: number,
+  ) {
+    const line = await this.prisma.cartItem.findUnique({
+      where: { cartId_productId_size: { cartId: clientId, productId, size } },
+    });
     if (!line) {
       throw new NotFoundException('Cart item not found');
     }
+
     if (quantity <= 0) {
-      this.removeItem(clientId, productId, size);
+      await this.prisma.cartItem.delete({ where: { id: line.id } });
     } else {
-      line.quantity = Math.min(quantity, CartService.MAX_QUANTITY_PER_LINE);
-      this.carts.set(clientId, lines);
+      await this.prisma.cartItem.update({
+        where: { id: line.id },
+        data: {
+          quantity: Math.min(quantity, CartService.MAX_QUANTITY_PER_LINE),
+        },
+      });
     }
-    return this.enrich(this.carts.get(clientId) ?? []);
+    await this.touchCart(clientId);
+    return this.getCart(clientId);
   }
 
   async removeItem(clientId: string, productId: number, size: string) {
-    const lines = (this.carts.get(clientId) ?? []).filter(
-      (l) => !(l.productId === productId && l.size === size),
-    );
-    this.carts.set(clientId, lines);
-    return this.enrich(lines);
+    await this.prisma.cartItem.deleteMany({
+      where: { cartId: clientId, productId, size },
+    });
+    await this.touchCart(clientId);
+    return this.getCart(clientId);
   }
 
   async clearCart(clientId: string) {
-    this.carts.delete(clientId);
-    return { items: [], totalAmount: 0 };
+    await this.prisma.cart.deleteMany({ where: { clientId } });
+    return { items: [] as CartLineItem[], totalAmount: 0 };
   }
 
-  /** Keeps the store bounded: evicts the oldest-inserted cart when at capacity. */
-  private evictOldestIfNeeded(): void {
-    if (this.carts.size < CartService.MAX_CARTS) return;
-    const oldest = this.carts.keys().next().value;
-    if (oldest !== undefined) {
-      this.carts.delete(oldest);
-    }
+  /** Bumps updatedAt so an active cart never ages out of the idle sweep. */
+  private async touchCart(clientId: string): Promise<void> {
+    await this.prisma.cart.updateMany({
+      where: { clientId },
+      data: { updatedAt: new Date() },
+    });
+  }
+
+  /** Deletes carts untouched for CART_TTL_MS — keeps the table bounded. */
+  private async sweepExpiredCarts(): Promise<void> {
+    await this.prisma.cart.deleteMany({
+      where: {
+        updatedAt: { lt: new Date(Date.now() - CartService.CART_TTL_MS) },
+      },
+    });
   }
 
   private async assertVariantExists(productId: number, size: string) {
@@ -115,7 +165,9 @@ export class CartService {
       where: { productId, size },
     });
     if (!variant) {
-      throw new NotFoundException(`Size ${size} not available for product ${productId}`);
+      throw new NotFoundException(
+        `Size ${size} not available for product ${productId}`,
+      );
     }
   }
 
@@ -128,7 +180,9 @@ export class CartService {
       where: { id: { in: productIds } },
       include: { images: true },
     });
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
     const items: CartLineItem[] = lines.flatMap((line) => {
       const product = productMap.get(line.productId);

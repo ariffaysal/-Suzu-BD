@@ -48,7 +48,13 @@ export class ProductsController {
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ) {
-    return this.productsService.findAll({ category, search, collection, page, limit });
+    return this.productsService.findAll({
+      category,
+      search,
+      collection,
+      page,
+      limit,
+    });
   }
 
   @Public()

@@ -61,7 +61,11 @@ export class CartController {
     @Param('productId', ParseIntPipe) productId: number,
     @Param('size') size: string,
   ) {
-    return this.cartService.removeItem(this.clientId(clientId), productId, size);
+    return this.cartService.removeItem(
+      this.clientId(clientId),
+      productId,
+      size,
+    );
   }
 
   @Delete()

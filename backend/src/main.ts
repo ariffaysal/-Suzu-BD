@@ -24,7 +24,9 @@ async function bootstrap() {
 
   // Strict CORS — only allowlisted origins may call the API.
   // Set CORS_ORIGINS as a comma-separated list (e.g. https://store.example.com,https://admin.example.com).
-  const configuredOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+  const configuredOrigins = (
+    process.env.CORS_ORIGINS ?? 'http://localhost:3000'
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -42,7 +44,11 @@ async function bootstrap() {
   app.enableCors({
     origin(origin, callback) {
       // Allow non-browser requests (curl, server-to-server) and allowlisted or dev-localhost origins.
-      if (!origin || configuredOrigins.includes(origin) || (isDev && isLocalhost(origin))) {
+      if (
+        !origin ||
+        configuredOrigins.includes(origin) ||
+        (isDev && isLocalhost(origin))
+      ) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

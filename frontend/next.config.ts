@@ -7,6 +7,9 @@ const apiUrl = new URL(
   process.env.NEXT_PUBLIC_API_ORIGIN ?? "http://localhost:4000",
 );
 
+// `next dev` runs with NODE_ENV=development; build/start run with production.
+const isProduction = process.env.NODE_ENV === "production";
+
 const securityHeaders = [
   // Never allow the storefront to be embedded in another site (clickjacking)
   { key: "X-Frame-Options", value: "DENY" },
@@ -33,6 +36,10 @@ const nextConfig: NextConfig = {
       // Placeholder images used by the seed data
       { protocol: "https", hostname: "picsum.photos" },
     ],
+    // Next 16 blocks the optimizer from fetching localhost/private IPs (SSRF
+    // protection). Dev needs it — the API runs on localhost:4000. Production
+    // images come from a public domain, so the protection stays enabled there.
+    ...(!isProduction ? { dangerouslyAllowLocalIP: true } : {}),
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

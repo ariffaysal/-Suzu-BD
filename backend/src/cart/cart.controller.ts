@@ -21,7 +21,10 @@ export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   private clientId(@Headers(CLIENT_ID_HEADER) clientId?: string): string {
-    return clientId || 'anonymous';
+    // The header is attacker-controlled — cap its length so it can never
+    // bloat the database, and never store an empty value.
+    const id = (clientId ?? '').trim().slice(0, 64);
+    return id || 'anonymous';
   }
 
   @Get()

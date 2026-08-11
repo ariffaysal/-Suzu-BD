@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertValidImageFile, isAllowedImage } from '../uploads/uploads.service';
 import { CreateHeroSlideDto } from './dto/create-hero-slide.dto';
 import { UpdateHeroSlideDto } from './dto/update-hero-slide.dto';
 
@@ -20,19 +21,27 @@ export const heroSlideMulterOptions: MulterOptions = {
   storage: diskStorage({
     destination: HERO_SLIDES_DIR,
     filename: (_req, file, callback) => {
-      const extension = extname(file.originalname);
+      const extension = extname(file.originalname).toLowerCase();
       callback(null, `${randomUUID()}${extension}`);
     },
   }),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — hero images are larger than product shots
   fileFilter: (_req, file, callback) => {
-    if (!file.mimetype.startsWith('image/')) {
-      callback(new BadRequestException('Only image files are allowed'), false);
+    if (!isAllowedImage(file.originalname, file.mimetype)) {
+      callback(
+        new BadRequestException('Only PNG, JPG, JPEG, GIF, WEBP or AVIF images are allowed'),
+        false,
+      );
       return;
     }
     callback(null, true);
   },
 };
+
+/** Verifies a freshly written hero image and cleans it up if it is not a real image. */
+function verifyHeroImage(file: Express.Multer.File): void {
+  assertValidImageFile(file, join(HERO_SLIDES_DIR, file.filename));
+}
 
 @Injectable()
 export class HeroSlidesService implements OnModuleInit {
@@ -60,6 +69,9 @@ export class HeroSlidesService implements OnModuleInit {
   }
 
   async create(dto: CreateHeroSlideDto, file?: Express.Multer.File) {
+    if (file) {
+      verifyHeroImage(file);
+    }
     const imageUrl = file ? `/uploads/hero-slides/${file.filename}` : dto.imageUrl;
     if (!imageUrl) {
       throw new BadRequestException('Provide an image file or an imageUrl');
@@ -82,6 +94,9 @@ export class HeroSlidesService implements OnModuleInit {
   }
 
   async update(id: number, dto: UpdateHeroSlideDto, file?: Express.Multer.File) {
+    if (file) {
+      verifyHeroImage(file);
+    }
     const existing = await this.prisma.heroSlide.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException(`Hero slide ${id} not found`);

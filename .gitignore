@@ -13,8 +13,8 @@ out/
 .env.*
 !.env.example
 
-# Uploads (runtime files)
-uploads/
+# Uploads (runtime files — note: NOT src/uploads/, which is source code)
+/backend/uploads/
 
 # Logs
 *.log

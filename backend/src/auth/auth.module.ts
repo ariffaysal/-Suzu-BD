@@ -8,13 +8,22 @@ import { AuthService } from './auth.service';
   imports: [
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') ?? 'dev-secret-change-me',
-        signOptions: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '7d') as any,
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        // Fail closed: never sign tokens with a known default secret.
+        if (!secret || secret === 'dev-secret-change-me') {
+          throw new Error(
+            'JWT_SECRET must be set to a strong random value (at least 32 characters)',
+          );
+        }
+        return {
+          secret,
+          signOptions: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '7d') as any,
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

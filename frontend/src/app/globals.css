@@ -18,6 +18,34 @@ body {
     Arial, sans-serif;
 }
 
+/* ---------- Landing page: light wood background ---------- */
+
+.bg-wood-light {
+  background-color: #fff7eb;
+  background-image:
+    /* fine horizontal grain streaks */
+    repeating-linear-gradient(
+      90deg,
+      rgba(196, 158, 106, 0.07) 0px,
+      rgba(196, 158, 106, 0.03) 2px,
+      rgba(196, 158, 106, 0) 8px,
+      rgba(196, 158, 106, 0.05) 16px,
+      rgba(196, 158, 106, 0) 28px,
+      rgba(196, 158, 106, 0.04) 40px,
+      rgba(196, 158, 106, 0) 52px
+    ),
+    /* soft wide bands for a plank feel */
+    repeating-linear-gradient(
+      90deg,
+      rgba(190, 150, 100, 0.05) 0px,
+      rgba(190, 150, 100, 0) 130px,
+      rgba(190, 150, 100, 0.04) 260px,
+      rgba(190, 150, 100, 0) 400px
+    ),
+    /* gentle vertical tonal shift */
+    linear-gradient(180deg, #fffdf6 0%, #fff7eb 50%, #fbefdc 100%);
+}
+
 /* ---------- Suzu BD logo animations ---------- */
 
 @keyframes logo-fade-up {

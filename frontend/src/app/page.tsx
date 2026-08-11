@@ -27,6 +27,8 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-16">
+      {/* Light wood background — fixed full-viewport layer behind all content */}
+      <div aria-hidden className="bg-wood-light fixed inset-0 -z-10" />
       {/* Hero — auto-sliding image carousel (slides managed in the database) */}
       <HeroSlider>
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">

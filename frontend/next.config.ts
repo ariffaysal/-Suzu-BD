@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
       },
       // Placeholder images used by the seed data
       { protocol: "https", hostname: "picsum.photos" },
+      // Uploaded product/hero images stored in Vercel Blob (production)
+      { protocol: "https", hostname: "**.blob.vercel-storage.com" },
     ],
     // Next 16 blocks the optimizer from fetching localhost/private IPs (SSRF
     // protection). Dev needs it — the API runs on localhost:4000. Production

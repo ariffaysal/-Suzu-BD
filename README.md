@@ -82,6 +82,15 @@ Send the JWT as `Authorization: Bearer <token>`.
 
 ## Production deployment (Vercel)
 
+**Live:** storefront https://suzu-bd-web.vercel.app · API https://suzu-bd-api.vercel.app
+(team `ariffaysals-projects`, projects `suzu-bd-web` / `suzu-bd-api`). The API is a
+single Fluid-compute function (Vercel's zero-config NestJS support — entrypoint
+`src/main.ts`) backed by a **private managed Postgres** (Neon, resource
+`neon-bole-lamp`, connected via the Vercel integration) and a **Vercel Blob** store
+(`suzu-bd-blob`).
+
+Redeploy from scratch:
+
 The backend (NestJS) and frontend (Next.js) deploy as **two separate Vercel projects**
 under your team (e.g. `ariffaysals-projects`). The API runs as a single Fluid-compute
 function (Vercel's zero-config NestJS support — entrypoint `src/main.ts`), and the

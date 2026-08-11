@@ -1,13 +1,14 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Order, Product } from '@/types';
+import { useCallback, useEffect, useState } from 'react';
+import type { Order, OrderStatsPeriod } from '@/types';
 import { formatPrice } from '@/services/format';
 import { assetUrl } from '@/services/api';
 import {
   adminGetProducts,
   deleteOrder,
+  getOrderStats,
   getOrders,
   updateOrderStatus,
 } from '@/services/admin';
@@ -54,45 +55,49 @@ export default function OrdersManager() {
   const [productInfo, setProductInfo] = useState<
     Map<number, { title: string; image: string | null }>
   >(new Map());
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  // Dashboard stats come from the server (GET /orders/stats); zeros until loaded.
+  const [stats, setStats] = useState<OrderStatsPeriod[]>(() =>
+    PERIODS.map((p) => ({ key: p.key, count: 0, total: 0 })),
+  );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setOrders(await getOrders());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders');
-    } finally {
-      setLoading(false);
-    }
+  // Called on mount and when paging; `loading`/`error` already hold their
+  // initial values. All setStates run in promise callbacks (never synchronously
+  // in the effect).
+  const load = useCallback((pageNumber: number) => {
+    return getOrders({ page: pageNumber })
+      .then((result) => {
+        setOrders(result.items);
+        setPage(result.page);
+        setTotal(result.total);
+        setTotalPages(result.totalPages);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load orders'))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    void load();
-    // Map product ids → title + first image so order items show real names and pictures.
-    adminGetProducts()
-      .then((products: Product[]) =>
+    void load(1);
+    // Map product ids → title + first image so order items show real names and
+    // pictures (loads the full catalog at the server's max page size).
+    adminGetProducts({ limit: 500 })
+      .then((result) =>
         setProductInfo(
-          new Map(products.map((p) => [p.id, { title: p.title, image: p.images[0]?.url ?? null }])),
+          new Map(
+            result.items.map((p) => [
+              p.id,
+              { title: p.title, image: p.images[0]?.url ?? null },
+            ]),
+          ),
         ),
       )
       .catch(() => {});
+    getOrderStats()
+      .then(setStats)
+      .catch(() => {});
   }, [load]);
-
-  const summary = useMemo(() => {
-    const now = Date.now();
-    return PERIODS.map((period) => {
-      const cutoff = period.days === null ? 0 : now - period.days * 24 * 60 * 60 * 1000;
-      const inPeriod = orders.filter(
-        (order) => new Date(order.createdAt).getTime() >= cutoff,
-      );
-      return {
-        ...period,
-        count: inPeriod.length,
-        total: inPeriod.reduce((sum, order) => sum + order.totalAmount, 0),
-      };
-    });
-  }, [orders]);
 
   async function handleStatusChange(order: Order, status: string) {
     setError(null);
@@ -141,15 +146,15 @@ export default function OrdersManager() {
         </p>
       )}
 
-      {/* Order summary */}
+      {/* Order summary — server-computed so it covers all orders, not just the current page */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {summary.map((period) => (
+        {stats.map((period) => (
           <div
             key={period.key}
             className="rounded-2xl border border-gray-200 bg-white p-4"
           >
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
-              {period.label}
+              {PERIODS.find((p) => p.key === period.key)?.label ?? period.key}
             </p>
             <p className="mt-2 text-2xl font-black text-gray-900">{period.count}</p>
             <p className="text-xs text-gray-500">orders</p>
@@ -171,7 +176,7 @@ export default function OrdersManager() {
       )}
 
       {/* Orders table */}
-      {orders.length === 0 ? (
+      {total === 0 ? (
         <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
           No orders yet — customer checkouts will appear here.
         </p>
@@ -209,6 +214,31 @@ export default function OrdersManager() {
               })}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3">
+              <p className="text-sm text-gray-500">
+                {total} {total === 1 ? 'order' : 'orders'} · Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void load(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ← Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void load(page + 1)}
+                  disabled={page >= totalPages}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

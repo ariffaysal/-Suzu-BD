@@ -22,16 +22,15 @@ export default function CategoriesManager() {
   const [slug, setSlug] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setCategories(await adminGetCategories());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
+  // Called once on mount; `loading`/`error` already hold their initial values.
+  // All setStates run in promise callbacks (never synchronously in the effect).
+  const load = useCallback(() => {
+    return adminGetCategories()
+      .then(setCategories)
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : 'Failed to load categories'),
+      )
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {

@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const [categories, products] = await Promise.all([
     getCategories().catch(() => []),
-    getProducts().catch(() => []),
+    getProducts({ limit: 8 }).catch(() => null),
   ]);
-  const featured = products.slice(0, 8);
+  const featured = products?.items ?? [];
   const groups = groupByCollection(categories);
   const menGroup = groups.find((g) => g.key === 'MEN');
   const womenGroup = groups.find((g) => g.key === 'WOMEN');

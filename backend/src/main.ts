@@ -10,6 +10,15 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // Trust the X-Forwarded-For header from a reverse proxy so rate limiting and
+  // logging key on the real client IP. Only enabled in production; in dev the
+  // API is reached directly and trusting the header would let clients spoof it.
+  // Deploy behind a proxy that overwrites X-Forwarded-For and never expose the
+  // API socket directly.
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+  }
+
   // Security headers: nosniff, frame protection, CSP, HSTS, etc.
   app.use(helmet());
 

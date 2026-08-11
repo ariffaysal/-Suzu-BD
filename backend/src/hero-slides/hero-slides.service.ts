@@ -43,6 +43,20 @@ function verifyHeroImage(file: Express.Multer.File): void {
   assertValidImageFile(file, join(HERO_SLIDES_DIR, file.filename));
 }
 
+/**
+ * True only when `imageUrl` points at a plain file inside the hero-slides
+ * uploads directory. Defense in depth against path traversal: even a crafted
+ * imageUrl (e.g. one stored before the DTO validation was tightened) can never
+ * be unlinked from outside the uploads directory. The filename check (no `/`,
+ * no `..`) is what guarantees containment, and it avoids path-resolution
+ * differences between Windows and POSIX.
+ */
+function isManagedHeroImage(imageUrl: string): boolean {
+  const PREFIX = '/uploads/hero-slides/';
+  if (!imageUrl.startsWith(PREFIX)) return false;
+  return /^[a-zA-Z0-9._-]+$/.test(imageUrl.slice(PREFIX.length));
+}
+
 @Injectable()
 export class HeroSlidesService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
@@ -116,7 +130,7 @@ export class HeroSlidesService implements OnModuleInit {
     });
 
     // Clean up the replaced image file from disk (best effort).
-    if (file && existing.imageUrl.startsWith('/uploads/hero-slides/')) {
+    if (file && isManagedHeroImage(existing.imageUrl)) {
       try {
         unlinkSync(join(process.cwd(), existing.imageUrl));
       } catch {
@@ -134,7 +148,7 @@ export class HeroSlidesService implements OnModuleInit {
     }
     await this.prisma.heroSlide.delete({ where: { id } });
 
-    if (existing.imageUrl.startsWith('/uploads/hero-slides/')) {
+    if (isManagedHeroImage(existing.imageUrl)) {
       try {
         unlinkSync(join(process.cwd(), existing.imageUrl));
       } catch {

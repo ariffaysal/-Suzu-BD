@@ -3,6 +3,8 @@ import type {
   CreateCategoryInput,
   CreateProductInput,
   Order,
+  OrderStatsPeriod,
+  Paginated,
   Product,
   UploadResponse,
 } from '@/types';
@@ -53,8 +55,17 @@ async function adminFetch<T>(path: string, options: RequestInit = {}): Promise<T
 
 // ---------- Products ----------
 
-export function adminGetProducts() {
-  return adminFetch<Product[]>('/products');
+/**
+ * Fetches the public (paginated) product list. The admin views load the whole
+ * catalog for client-side search/filtering, so they request the server's max
+ * page size.
+ */
+export function adminGetProducts(params: { page?: number; limit?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.page) qs.set('page', String(params.page));
+  if (params.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  return adminFetch<Paginated<Product>>(`/products${query ? `?${query}` : ''}`);
 }
 
 export function adminGetProduct(id: number) {
@@ -105,8 +116,16 @@ export function deleteCategory(id: number) {
 
 // ---------- Orders ----------
 
-export function getOrders() {
-  return adminFetch<Order[]>('/orders');
+export function getOrders(params: { page?: number; limit?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.page) qs.set('page', String(params.page));
+  if (params.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  return adminFetch<Paginated<Order>>(`/orders${query ? `?${query}` : ''}`);
+}
+
+export function getOrderStats() {
+  return adminFetch<OrderStatsPeriod[]>('/orders/stats');
 }
 
 export function updateOrderStatus(id: number, status: string) {

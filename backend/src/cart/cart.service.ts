@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 
@@ -25,11 +25,19 @@ export interface CartLineItem {
 
 // In-memory session store keyed by a client id (e.g. generated UUID stored in the
 // browser). Swap for Redis in production for multi-instance support.
+//
+// The client id is attacker-controlled, so the store is bounded: a fixed number
+// of carts, a fixed number of lines per cart, and a fixed max quantity per line
+// prevent an attacker from growing memory without limit.
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly carts = new Map<string, CartLine[]>();
+
+  private static readonly MAX_CARTS = 10_000;
+  private static readonly MAX_LINES_PER_CART = 50;
+  private static readonly MAX_QUANTITY_PER_LINE = 99;
 
   async getCart(clientId: string) {
     return this.enrich(this.carts.get(clientId) ?? []);
@@ -37,20 +45,30 @@ export class CartService {
 
   async addItem(clientId: string, dto: AddCartItemDto) {
     await this.assertVariantExists(dto.productId, dto.size);
+    const quantity = Math.min(dto.quantity ?? 1, CartService.MAX_QUANTITY_PER_LINE);
     const lines = this.carts.get(clientId) ?? [];
     const existing = lines.find(
       (line) => line.productId === dto.productId && line.size === dto.size,
     );
     if (existing) {
-      existing.quantity += dto.quantity ?? 1;
+      existing.quantity = Math.min(
+        existing.quantity + quantity,
+        CartService.MAX_QUANTITY_PER_LINE,
+      );
     } else {
+      if (lines.length >= CartService.MAX_LINES_PER_CART) {
+        throw new BadRequestException(
+          `Cart is full (max ${CartService.MAX_LINES_PER_CART} items)`,
+        );
+      }
       lines.push({
         productId: dto.productId,
         size: dto.size,
         color: dto.color ?? null,
-        quantity: dto.quantity ?? 1,
+        quantity,
       });
     }
+    this.evictOldestIfNeeded();
     this.carts.set(clientId, lines);
     return this.enrich(lines);
   }
@@ -64,7 +82,7 @@ export class CartService {
     if (quantity <= 0) {
       this.removeItem(clientId, productId, size);
     } else {
-      line.quantity = quantity;
+      line.quantity = Math.min(quantity, CartService.MAX_QUANTITY_PER_LINE);
       this.carts.set(clientId, lines);
     }
     return this.enrich(this.carts.get(clientId) ?? []);
@@ -81,6 +99,15 @@ export class CartService {
   async clearCart(clientId: string) {
     this.carts.delete(clientId);
     return { items: [], totalAmount: 0 };
+  }
+
+  /** Keeps the store bounded: evicts the oldest-inserted cart when at capacity. */
+  private evictOldestIfNeeded(): void {
+    if (this.carts.size < CartService.MAX_CARTS) return;
+    const oldest = this.carts.keys().next().value;
+    if (oldest !== undefined) {
+      this.carts.delete(oldest);
+    }
   }
 
   private async assertVariantExists(productId: number, size: string) {

@@ -16,6 +16,9 @@ const productInclude = {
   images: true,
 } satisfies Prisma.ProductInclude;
 
+const DEFAULT_PAGE_SIZE = 24;
+const MAX_PAGE_SIZE = 500;
+
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -72,6 +75,8 @@ export class ProductsService {
     category?: string;
     search?: string;
     collection?: string;
+    page?: number;
+    limit?: number;
   }) {
     const where: Prisma.ProductWhereInput = {};
 
@@ -98,11 +103,28 @@ export class ProductsService {
         { description: { contains: query.search, mode: 'insensitive' } },
       ];
     }
-    return this.prisma.product.findMany({
-      where,
-      include: productInclude,
-      orderBy: { createdAt: 'desc' },
-    });
+
+    // Server-side pagination — the page size is validated in the controller and
+    // capped here, so even a hostile request can never return an unbounded list.
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE));
+    const [items, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        include: productInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: number) {

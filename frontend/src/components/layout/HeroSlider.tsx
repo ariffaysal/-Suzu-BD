@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { assetUrl } from '@/services/api';
 import { getHeroSlides } from '@/services/hero-slides';
 import type { HeroSlide } from '@/types';
@@ -10,16 +10,20 @@ const FADE_MS = 1200; // crossfade duration (keep in sync with the Tailwind dura
 
 type SlideStatus = 'loading' | 'ready' | 'empty';
 
+function subscribeReducedMotion(callback: () => void) {
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  mq.addEventListener('change', callback);
+  return () => mq.removeEventListener('change', callback);
+}
+
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return reduced;
+  // useSyncExternalStore reads the media query during render (no effect needed)
+  // and handles the server snapshot so hydration never mismatches.
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => false, // server snapshot: animate on first paint
+  );
 }
 
 export default function HeroSlider({ children }: { children: React.ReactNode }) {

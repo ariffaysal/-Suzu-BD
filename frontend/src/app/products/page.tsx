@@ -11,29 +11,52 @@ export const metadata: Metadata = {
 };
 
 interface ProductsPageProps {
-  searchParams: Promise<{ category?: string; search?: string; collection?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    search?: string;
+    collection?: string;
+    page?: string;
+  }>;
 }
 
 const NEW_ARRIVALS_LIMIT = 12;
+const PAGE_SIZE = 24;
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const { category, search, collection } = await searchParams;
+  const { category, search, collection, page: pageParam } = await searchParams;
   const isNewArrivals = category === 'new-arrivals';
+  const page = Math.max(1, Number(pageParam) || 1);
 
-  const [categories, products] = await Promise.all([
+  const [categories, result] = await Promise.all([
     getCategories().catch(() => []),
     getProducts({
       category: isNewArrivals ? undefined : category,
       collection: isNewArrivals ? undefined : collection,
       search,
-    }).catch(() => []),
+      page: isNewArrivals ? 1 : page,
+      limit: isNewArrivals ? NEW_ARRIVALS_LIMIT : PAGE_SIZE,
+    }).catch(() => null),
   ]);
 
-  const activeCategory = categories.find((c) => c.slug === category);
-  const visibleProducts = isNewArrivals ? products.slice(0, NEW_ARRIVALS_LIMIT) : products;
+  const visibleProducts = result?.items ?? [];
+  const total = result?.total ?? 0;
+  const totalPages = result?.totalPages ?? 0;
   const groups = groupByCollection(categories);
+  const activeCategory = categories.find((c) => c.slug === category);
   const activeCollection = groups.find((g) => g.key === collection?.toUpperCase());
   const visibleGroups = collection ? (activeCollection ? [activeCollection] : []) : groups;
+
+  // Keep filters (and page) when navigating between pages.
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (collection) params.set('collection', collection);
+    if (search) params.set('search', search);
+    if (p > 1) params.set('page', String(p));
+    const qs = params.toString();
+    return `/products${qs ? `?${qs}` : ''}`;
+  };
+  const shownCount = isNewArrivals ? visibleProducts.length : total;
 
   const heading = isNewArrivals
     ? 'New Arrivals'
@@ -50,7 +73,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           {isNewArrivals ? '✦ New Arrivals' : heading}
         </h1>
         <p className="mt-1 text-gray-500">
-          {visibleProducts.length} {visibleProducts.length === 1 ? 'product' : 'products'}
+          {shownCount} {shownCount === 1 ? 'product' : 'products'}
           {search ? ` matching “${search}”` : ''}
         </p>
       </div>
@@ -150,6 +173,40 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             Clear filters
           </Link>
         </div>
+      )}
+
+      {/* Pagination */}
+      {!isNewArrivals && totalPages > 1 && (
+        <nav
+          aria-label="Product pages"
+          className="mt-10 flex items-center justify-center gap-4"
+        >
+          <Link
+            href={pageHref(page - 1)}
+            aria-disabled={page <= 1}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${
+              page <= 1
+                ? 'pointer-events-none border-gray-200 text-gray-300'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            ← Prev
+          </Link>
+          <span className="text-sm text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <Link
+            href={pageHref(page + 1)}
+            aria-disabled={page >= totalPages}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${
+              page >= totalPages
+                ? 'pointer-events-none border-gray-200 text-gray-300'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Next →
+          </Link>
+        </nav>
       )}
     </div>
   );

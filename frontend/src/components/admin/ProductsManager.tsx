@@ -19,16 +19,17 @@ export default function ProductsManager() {
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setProducts(await adminGetProducts());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load products');
-    } finally {
-      setLoading(false);
-    }
+  // Called once on mount; `loading`/`error` already hold their initial values.
+  // All setStates run in promise callbacks (never synchronously in the effect).
+  // The admin view loads the full catalog (server's max page size) so the
+  // client-side search and stock filters keep working.
+  const load = useCallback(() => {
+    return adminGetProducts({ limit: 500 })
+      .then((result) => setProducts(result.items))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : 'Failed to load products'),
+      )
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {

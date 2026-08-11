@@ -28,14 +28,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Restore the session from the stored JWT and validate it with the server.
+  // The no-token case resolves a promise instead of calling setState
+  // synchronously, so the state updates always happen after the effect commit.
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-    getMe(token)
-      .then(setAdmin)
+    const validate = token
+      ? getMe(token).then(setAdmin)
+      : Promise.resolve();
+    validate
       .catch(() => {
         // Invalid or expired token — drop it.
         clearStoredToken();

@@ -45,8 +45,10 @@ export class ProductsController {
     @Query('category') category?: string,
     @Query('search') search?: string,
     @Query('collection') collection?: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ) {
-    return this.productsService.findAll({ category, search, collection });
+    return this.productsService.findAll({ category, search, collection, page, limit });
   }
 
   @Public()

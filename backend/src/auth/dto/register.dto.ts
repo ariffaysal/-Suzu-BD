@@ -5,7 +5,7 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(10, { message: 'Password must be at least 10 characters long' })
   password!: string;
 
   @IsOptional()

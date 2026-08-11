@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { Public } from '../auth/decorators/public.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -23,8 +24,17 @@ export class OrdersController {
   }
 
   @Get()
-  findAll() {
-    return this.ordersService.findAll();
+  findAll(
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    return this.ordersService.findAll({ page, limit });
+  }
+
+  // Must be declared before :id so "stats" isn't captured by the id route.
+  @Get('stats')
+  stats() {
+    return this.ordersService.stats();
   }
 
   @Get(':id')

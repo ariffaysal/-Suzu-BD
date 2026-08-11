@@ -1,3 +1,12 @@
+/** Standard server-side pagination envelope returned by list endpoints. */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -68,6 +77,13 @@ export interface CreateOrderInput {
   address: string;
   paymentMethod?: string;
   items: { productId: number; size: string; quantity: number }[];
+}
+
+/** Order stats for the admin dashboard: count + revenue per period key (1d/7d/30d/all). */
+export interface OrderStatsPeriod {
+  key: string;
+  count: number;
+  total: number;
 }
 
 export interface HeroSlide {
